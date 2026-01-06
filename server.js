@@ -4,7 +4,6 @@ const mqtt = require('mqtt')
 const fs = require('fs')
 const path = require('path')
 const Influx = require('influx')
-const ejs = require('ejs')
 const moment = require('moment-timezone')
 const WebSocket = require('ws')
 const retry = require('async-retry')
@@ -47,9 +46,11 @@ const BASE_PATH = process.env.INGRESS_PATH || '';
 app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: '*' }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
-app.use(express.static(path.join(__dirname, 'public')))
-app.set('view engine', 'ejs')
-app.set('views', path.join(__dirname, 'views'))
+
+// Serve React app in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'frontend/dist')))
+}
 
 app.use((req, res, next) => {
   if (req.path.includes('/hassio_ingress/')) {
@@ -232,7 +233,7 @@ const API_REQUEST_INTERVAL = 500; // 500ms between API requests for better respo
 
 // InfluxDB configuration
 const influxConfig = {
-  host: '192.168.1.169',
+  host: '10.241.110.59',
   port: 8086,
   database: 'home_assistant',
   username: 'admin',
@@ -1714,117 +1715,12 @@ setTimeout(() => {
 
 
 app.get('/', async (req, res) => {
-  // Redirect to energy dashboard as main page
-  res.redirect(`${process.env.INGRESS_PATH || ''}/energy-dashboard`);
-});
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+})
 
-// Energy Dashboard route
 app.get('/energy-dashboard', async (req, res) => {
-  const grafanaHost = getGrafanaHost(req);
-
-  const expectedInverters = parseInt(options.inverter_number) || 1
-  const inverterWarning = checkInverterMessages(
-    incomingMessages,
-    expectedInverters)
-
-  const batteryWarning = checkBatteryInformation(incomingMessages)
-  try {
-    const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
-    const selectedZone = settings.selectedZone;
-    
-    if (!selectedZone) {
-      return res.redirect('/settings?message=Please configure your zone first');
-    }
-    
-    let historyData = [];
-    // Fetch the same data arrays as analytics page
-    let loadPowerData = [], pvPowerData = [], batteryStateOfChargeData = [], 
-        batteryPowerData = [], gridPowerData = [], gridVoltageData = [];
-    let isLoading = false;
-    let error = null;
-    
-    try {
-      const cacheKey = selectedZone;
-      const isCached = carbonIntensityCacheByZone.has(cacheKey) && 
-                      (Date.now() - carbonIntensityCacheByZone.get(cacheKey).timestamp < CACHE_DURATION);
-      
-      if (isCached) {
-        historyData = carbonIntensityCacheByZone.get(cacheKey).data;
-      } else {
-        isLoading = true;
-      }
-      
-      // Use the same data fetching as analytics page
-      [loadPowerData, pvPowerData, batteryStateOfChargeData, batteryPowerData, gridPowerData, gridVoltageData] = await Promise.all([
-        queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`),
-        queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`),
-        queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_in/state`),
-        queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_out/state`),
-        queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_in/state`),
-        queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_out/state`)
-      ]);
-      
-      if (!isCached) {
-        historyData = await fetchCarbonIntensityHistory(selectedZone);
-        isLoading = false;
-      }
-    } catch (e) {
-      console.error('Error fetching data:', e);
-      error = 'Error fetching data. Please try again later.';
-      isLoading = false;
-    }
-    
-    // Use the updated emissions calculation function
-    const emissionsData = calculateEmissionsForPeriod(historyData, loadPowerData, pvPowerData, batteryStateOfChargeData, batteryPowerData, gridPowerData, gridVoltageData);
-    
-    const todayData = emissionsData.length > 0 ? emissionsData[emissionsData.length - 1] : {
-      date: moment().format('YYYY-MM-DD'),
-      unavoidableEmissions: 0,
-      avoidedEmissions: 0,
-      selfSufficiencyScore: 0,
-      gridEnergy: 0,
-      solarEnergy: 0,
-      carbonIntensity: 0
-    };
-    
-    const weekData = emissionsData.slice(-7);
-    const monthData = emissionsData.slice(-30);
-    
-    const summaryData = {
-      today: todayData,
-      week: {
-        unavoidableEmissions: weekData.reduce((sum, day) => sum + day.unavoidableEmissions, 0),
-        avoidedEmissions: weekData.reduce((sum, day) => sum + day.avoidedEmissions, 0),
-        selfSufficiencyScore: weekData.reduce((sum, day) => sum + day.selfSufficiencyScore, 0) / Math.max(1, weekData.length)
-      },
-      month: {
-        unavoidableEmissions: monthData.reduce((sum, day) => sum + day.unavoidableEmissions, 0),
-        avoidedEmissions: monthData.reduce((sum, day) => sum + day.avoidedEmissions, 0),
-        selfSufficiencyScore: monthData.reduce((sum, day) => sum + day.selfSufficiencyScore, 0) / Math.max(1, monthData.length)
-      }
-    };
-    
-    res.render('energy-dashboard', {
-      selectedZone,
-      todayData: {
-        ...todayData,
-        date: moment().format('YYYY-MM-DD')
-      },
-      summaryData,
-      isLoading,
-      error,
-      ingress_path: process.env.INGRESS_PATH || '',
-      grafanaHost: grafanaHost,  
-      inverterWarning,
-      batteryWarning,
-      batteryMessages: debugBatteryMessages(incomingMessages),
-      username: options.mqtt_username || 'User'
-    });
-  } catch (error) {
-    console.error('Error rendering welcome page:', error);
-    res.status(500).render('error', { error: 'Error loading welcome page' });
-  }
-});
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+})
 
 // Home Assistant ingress routes for energy dashboard
 app.get('/api/hassio_ingress/:token/energy-dashboard', (req, res) => {
@@ -1837,403 +1733,47 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
 
 
 
- app.get('/analytics', async (req, res) => {
-    try {
-      const selectedZone = req.query.zone || JSON.parse(fs.readFileSync(SETTINGS_FILE)).selectedZone;
-      let carbonIntensityData = [];
-  
-      if (selectedZone) {
-        try {
-          carbonIntensityData = await fetchCarbonIntensityHistory(selectedZone);
-        } catch (error) {
-          console.error('Error fetching carbon intensity data:', error);
-        }
-      }
-      
-      const [
-        loadPowerData, 
-        pvPowerData, 
-        batteryStateOfChargeData, 
-        batteryPowerData, 
-        gridPowerData, 
-        gridVoltageData,
-        loadPowerYear,
-        pvPowerYear,
-        batteryStateOfChargeYear,
-        batteryPowerYear,
-        gridPowerYear,
-        gridVoltageYear,
-        loadPowerDecade,
-        pvPowerDecade,
-        batteryStateOfChargeDecade,
-        batteryPowerDecade,
-        gridPowerDecade,
-        gridVoltageDecade
-      ] = await Promise.all([
-        queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`),
-        queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`),
-        queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_in/state`),
-        queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_out/state`),
-        queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_in/state`),
-        queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_out/state`),
-        queryInfluxDBForYear(`${mqttTopicPrefix}/total/load_energy/state`),
-        queryInfluxDBForYear(`${mqttTopicPrefix}/total/pv_energy/state`),
-        queryInfluxDBForYear(`${mqttTopicPrefix}/total/battery_energy_in/state`),
-        queryInfluxDBForYear(`${mqttTopicPrefix}/total/battery_energy_out/state`),
-        queryInfluxDBForYear(`${mqttTopicPrefix}/total/grid_energy_in/state`),
-        queryInfluxDBForYear(`${mqttTopicPrefix}/total/grid_energy_out/state`),
-        queryInfluxDBForDecade(`${mqttTopicPrefix}/total/load_energy/state`),
-        queryInfluxDBForDecade(`${mqttTopicPrefix}/total/pv_energy/state`),
-        queryInfluxDBForDecade(`${mqttTopicPrefix}/total/battery_energy_in/state`),
-        queryInfluxDBForDecade(`${mqttTopicPrefix}/total/battery_energy_out/state`),
-        queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_in/state`),
-        queryInfluxDBForDecade(`${mqttTopicPrefix}/total/grid_energy_out/state`)
-      ]);
-  
-      const zones = await getZones();
-  
-      const data = {
-        loadPowerData,
-        pvPowerData,
-        batteryStateOfChargeData,
-        batteryPowerData,
-        gridPowerData,
-        gridVoltageData,
-        carbonIntensityData,
-        selectedZone,
-        zones,
-        loadPowerYear,
-        pvPowerYear,
-        batteryStateOfChargeYear,
-        batteryPowerYear,
-        gridPowerYear,
-        gridVoltageYear,
-        loadPowerDecade,
-        pvPowerDecade,
-        batteryStateOfChargeDecade,
-        batteryPowerDecade,
-        gridPowerDecade,
-        gridVoltageDecade
-      };
-  
-      res.render('analytics', {
-        data,
-        ingress_path: process.env.INGRESS_PATH || '',
-        selectedZone
-      })
-    } catch (error) {
-      console.error('Error fetching analytics data:', error);
-      res.status(500).json({ 
-        error: 'Error fetching analytics data',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  })
-  
-   app.get('/results', async (req, res) => {
-    try {
-      const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
-      const selectedZone = req.query.zone || settings.selectedZone;
-      const zones = await getZones();
-  
-      let historyData = [];
-      // Use the same data arrays as analytics page
-      let loadPowerData = [], pvPowerData = [], batteryStateOfChargeData = [], 
-          batteryPowerData = [], gridPowerData = [], gridVoltageData = [];
-      let error = null;
-      let isLoading = false;
-  
-      if (selectedZone) {
-        try {
-          const cacheKey = `${selectedZone}`;
-          const isCached = carbonIntensityCacheByZone.has(cacheKey) && 
-                           (Date.now() - carbonIntensityCacheByZone.get(cacheKey).timestamp < CACHE_DURATION);
-  
-          if (isCached) {
-            historyData = carbonIntensityCacheByZone.get(cacheKey).data;
-          } else {
-            isLoading = true;
-          }
-  
-          // Use the same data fetching as analytics page
-          [loadPowerData, pvPowerData, batteryStateOfChargeData, batteryPowerData, gridPowerData, gridVoltageData] = await Promise.all([
-            queryInfluxDB(`${mqttTopicPrefix}/total/load_energy/state`),
-            queryInfluxDB(`${mqttTopicPrefix}/total/pv_energy/state`),
-            queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_in/state`),
-            queryInfluxDB(`${mqttTopicPrefix}/total/battery_energy_out/state`),
-            queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_in/state`),
-            queryInfluxDB(`${mqttTopicPrefix}/total/grid_energy_out/state`)
-          ]);
-  
-          if (!isCached) {
-            historyData = await fetchCarbonIntensityHistory(selectedZone);
-            carbonIntensityCacheByZone.set(cacheKey, { data: historyData, timestamp: Date.now() });
-            isLoading = false;
-          }
-        } catch (e) {
-          console.error('Error fetching data:', e);
-          error = 'Error fetching data. Please try again later.';
-          isLoading = false;
-        }
-      }
-  
-      const currentDate = moment().format('YYYY-MM-DD');
-  
-      // Use the updated emissions calculation function
-      const emissionsData = calculateEmissionsForPeriod(historyData, loadPowerData, pvPowerData, batteryStateOfChargeData, batteryPowerData, gridPowerData, gridVoltageData);
-  
-      if (emissionsData.length > 0) {
-        emissionsData[emissionsData.length - 1].date = currentDate;
-      }
-  
-      const todayData = emissionsData.find(item => item.date === currentDate) || {
-        date: currentDate,
-        unavoidableEmissions: 0,
-        avoidedEmissions: 0,
-        selfSufficiencyScore: 0,
-        gridEnergy: 0,
-        solarEnergy: 0,
-        carbonIntensity: 0,
-        formattedDate: moment(currentDate).format('MMM D, YYYY')
-      };
-  
-      const periods = {
-        today: [todayData],
-        week: emissionsData.slice(-7),
-        month: emissionsData.slice(-30),
-        quarter: emissionsData.slice(-90),
-        year: emissionsData
-      };
-  
-      res.render('results', {
-        selectedZone,
-        zones,
-        periods,
-        todayData,
-        error,
-        isLoading,
-        unavoidableEmissions: todayData.unavoidableEmissions,
-        avoidedEmissions: todayData.avoidedEmissions,
-        selfSufficiencyScore: todayData.selfSufficiencyScore,
-        currentDate: currentDate,
-        formattedDate: moment(currentDate).format('MMM D, YYYY'),
-        dateString: moment(currentDate).format('MMM D, YYYY'),
-        ingress_path: process.env.INGRESS_PATH || '',
-      });
-    } catch (error) {
-      console.error('Server error:', error);
-      res.status(500).render('error', { error: 'Error loading results' });
-    }
-  });
-  
-  app.post('/save-zone', (req, res) => {
-    const { zone } = req.body;
-    console.log(`Zone saved: ${zone}`);
-    res.json({ success: true, message: 'Zone saved successfully' });
-  });
-  
-  app.get('/settings', async (req, res) => {
-    try {
-      const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
-      const zonesResponse = await getZones();
-      
-      // Get Tibber configuration and status
-      const config = tibberService.config;
-      const status = tibberService.getStatus();
-      const aiStatus = aiChargingEngine.getStatus();
-      
-      res.render('settings', { 
-        settings,
-        ingress_path: process.env.INGRESS_PATH || '',
-        zones: zonesResponse.zones,
-        message: req.query.message,
-        error: zonesResponse.error,
-        // Tibber data - using names that match the EJS template
-        config: { 
-          ...config, 
-          apiKey: config.apiKey ? '***' + config.apiKey.slice(-4) : '' 
-        },
-        status,
-        aiStatus
-      });
-    } catch (error) {
-      res.status(500).render('error', { error: 'Error loading settings' });
-    }
-  });
+// All routes serve React app
+app.get('/analytics', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+})
 
+app.get('/results', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+})
 
-  
-  app.post('/settings', async (req, res) => {
-    try {
-      const { timezone, apiKey, selectedZone } = req.body;
-      
-      let currentSettings = {};
-      try {
-        const settingsData = fs.readFileSync(SETTINGS_FILE, 'utf8');
-        currentSettings = JSON.parse(settingsData);
-      } catch (err) {
-        currentSettings = {
-          apiKey: '',
-          selectedZone: '',
-          timezone: ''
-        };
-      }
-      
-      const settings = {
-        apiKey: apiKey !== undefined ? apiKey : currentSettings.apiKey,
-        selectedZone: selectedZone !== undefined ? selectedZone : currentSettings.selectedZone,
-        timezone: timezone !== undefined ? timezone : currentSettings.timezone
-      };
-  
-      if (!settings.selectedZone && !settings.apiKey) {
-        return res.status(400).json({
-          success: false,
-          error: 'At least one of API key or zone must be provided'
-        });
-      }
-  
-      fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
-  
-      if (timezone) {
-        currentTimezone = timezone;
-        setCurrentTimezone(timezone);
-      }
-  
-      res.json({
-        success: true,
-        message: 'Settings saved successfully'
-      });
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to save settings'
-      });
-    }
-  });
-  
-  app.post('/save-zone', (req, res) => {
-    try {
-        const { zone } = req.body;
-        const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
-        settings.selectedZone = zone;
-        fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
-        console.log(`Zone saved: ${zone}`);
-        res.json({ success: true, message: 'Zone saved successfully' });
-    } catch (error) {
-        console.error('Error saving zone:', error);
-        res.status(500).json({ success: false, error: 'Failed to save zone' });
-    }
-  });
-  
-  app.get('/api/messages', (req, res) => {
-      const category = req.query.category
-      const filteredMessages = filterMessagesByCategory(category)
-      res.json(filteredMessages)
-    })
-  
-    app.get('/api/timezone', (req, res) => {
-      res.json({ timezone: currentTimezone })
-    })
-    
-    app.post('/api/timezone', (req, res) => {
-      const { timezone } = req.body
-      if (moment.tz.zone(timezone)) {
-        currentTimezone = timezone
-        setCurrentTimezone(timezone)
-        res.json({ success: true, timezone: currentTimezone })
-      } else {
-        res.status(400).json({ error: 'Invalid timezone' })
-      }
-    })
-    
-    
-  app.get('/messages', (req, res) => {
-    res.render('messages', {
-      ingress_path: process.env.INGRESS_PATH || '',
-      categoryOptions: generateCategoryOptions(inverterNumber, batteryNumber),
-    })
-  })
+app.get('/settings', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+})
 
-  app.get('/chart', (req, res) => {
-    const grafanaHost = getGrafanaHost(req);
-    
-    console.log(`Chart route - grafanaHost: ${grafanaHost}`);
-    
-    res.render('chart', {
-      ingress_path: process.env.INGRESS_PATH || '',
-      grafanaHost: grafanaHost,
-    });
-  });
+app.get('/messages', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+})
 
-  app.get('/api/hassio_ingress/:token/chart', (req, res) => {
-    // Redirect to simplified handler
-    req.url = '/chart';
-    app._router.handle(req, res);
-  });
-  
-  app.get('/hassio_ingress/:token/chart', (req, res) => {
-    // Redirect to simplified handler
-    req.url = '/chart';
-    app._router.handle(req, res);
-  });
+app.get('/chart', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+})
 
-  // AI Dashboard route - main dashboard
-  app.get('/ai-dashboard', async (req, res) => {
-    try {
-      const grafanaHost = getGrafanaHost(req);
-      const expectedInverters = parseInt(options.inverter_number) || 1;
-      const inverterWarning = checkInverterMessages(incomingMessages, expectedInverters);
-      const batteryWarning = checkBatteryInformation(incomingMessages);
-      
-      res.render('ai-dashboard', {
-        title: 'AI Dashboard',
-        ingress_path: process.env.INGRESS_PATH || '',
-        user_id: USER_ID,
-        learner_active: learnerModeActive,
-        influx_connected: !!influx,
-        mqtt_connected: mqttClient ? mqttClient.connected : false,
-        system_state: currentSystemState,
-        ai_status: aiChargingEngine.getStatus(),
-        tibber_status: tibberService.getStatus(),
-        grafanaHost: grafanaHost,
-        inverterWarning,
-        batteryWarning,
-        username: options.mqtt_username || 'User'
-      });
-    } catch (error) {
-      console.error('Error rendering AI dashboard:', error);
-      res.status(500).send('Error loading AI dashboard');
-    }
-  });
+app.get('/ai-dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+})
 
-  // AI System route
-  app.get('/ai-system', async (req, res) => {
-    try {
-      const grafanaHost = getGrafanaHost(req);
-      const expectedInverters = parseInt(options.inverter_number) || 1;
-      const inverterWarning = checkInverterMessages(incomingMessages, expectedInverters);
-      const batteryWarning = checkBatteryInformation(incomingMessages);
-      
-      res.render('ai-system', {
-        ingress_path: process.env.INGRESS_PATH || '',
-        user_id: USER_ID,
-        learner_active: learnerModeActive,
-        influx_connected: !!influx,
-        mqtt_connected: mqttClient ? mqttClient.connected : false,
-        system_state: currentSystemState,
-        ai_status: aiChargingEngine.getStatus(),
-        tibber_status: tibberService.getStatus(),
-        grafanaHost: grafanaHost,
-        inverterWarning,
-        batteryWarning,
-        username: options.mqtt_username || 'User'
-      });
-    } catch (error) {
-      console.error('Error rendering AI system page:', error);
-      res.status(500).send('Error loading AI system page');
-    }
-  });
+app.get('/ai-system', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+})
+
+app.get('/notifications', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+})
+
+// Catch-all handler: send back React's index.html file for any non-API routes
+app.get('*', (req, res) => {
+  // Don't serve React for API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API endpoint not found' })
+  }
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+})
 
   app.get('/api/hassio_ingress/:token/ai-dashboard', (req, res) => {
     res.redirect(`${process.env.INGRESS_PATH || ''}/ai-dashboard`);
@@ -2610,7 +2150,7 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
     const batchSize = 30;
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
   
-    console.time('Carbon intensity data fetch');
+    console.log('Fetching carbon intensity data for results...');
     console.log(`Fetching carbon intensity data for ${selectedZone}...`);
     
     for (let m = moment(oneYearAgo); m.isBefore(today); m.add(batchSize, 'days')) {
@@ -2652,7 +2192,7 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
       }
     }
   
-    console.timeEnd('Carbon intensity data fetch');
+    console.log('Carbon intensity data fetch completed');
   
     carbonIntensityCacheByZone.set(cacheKey, {
       data: historyData,
@@ -5826,6 +5366,62 @@ cron.schedule('*/5 * * * *', async () => {
   }
 });
 
+// Configuration check API
+app.get('/api/config/check', (req, res) => {
+  try {
+    const config = {
+      inverter_number: options.inverter_number,
+      battery_number: options.battery_number,
+      mqtt_topic_prefix: options.mqtt_topic_prefix,
+      mqtt_host: options.mqtt_host,
+      mqtt_port: options.mqtt_port,
+      mqtt_username: options.mqtt_username,
+      mqtt_password: options.mqtt_password
+    }
+    
+    res.json({
+      success: true,
+      config: config
+    })
+  } catch (error) {
+    console.error('Error checking configuration:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check configuration'
+    })
+  }
+})
+
+app.post('/api/config/save', (req, res) => {
+  try {
+    const newConfig = req.body
+    
+    // Update options object
+    Object.keys(newConfig).forEach(key => {
+      if (newConfig[key] !== undefined) {
+        options[key] = newConfig[key]
+      }
+    })
+    
+    // Save to options.json file
+    const optionsPath = fs.existsSync('/data/options.json') ? '/data/options.json' : './options.json'
+    fs.writeFileSync(optionsPath, JSON.stringify(newConfig, null, 2))
+    
+    console.log('Configuration saved successfully')
+    
+    res.json({
+      success: true,
+      message: 'Configuration saved successfully'
+    })
+  } catch (error) {
+    console.error('Error saving configuration:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save configuration'
+    })
+  }
+})
+
 // Enhanced logging for startup
 console.log('\n🔋 ========== ENHANCED DYNAMIC PRICING SYSTEM ==========');
 console.log('🔧 Enhanced Features:');
@@ -5844,6 +5440,15 @@ console.log('   ✅ AI Charging Decisions');
 console.log('   ✅ Real-time Monitoring');
 console.log('   ✅ Automatic Optimization');
 console.log('==============================================\n');
+
+// Handle React Router (return `index.html` for all non-API routes)
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api') && !req.path.startsWith('/grafana')) {
+      res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+    }
+  })
+}
 
 // Run diagnostics after 10 seconds
 setTimeout(async () => {

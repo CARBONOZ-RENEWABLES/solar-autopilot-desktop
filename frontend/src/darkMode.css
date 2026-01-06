@@ -1,0 +1,175 @@
+/* Global Dark Mode Styles for React Components */
+
+/* Root variables for consistent theming */
+:root {
+  --primary-color: #DEAF0B;
+  --primary-hover: #c49a0a;
+  --dark-bg: rgba(24, 27, 31, 1);
+  --dark-card: rgba(31, 35, 40, 1);
+  --dark-border: rgba(48, 54, 61, 1);
+  --dark-text: #f8fafc;
+  --dark-text-secondary: #cbd5e1;
+  --dark-text-muted: #94a3b8;
+}
+
+/* Base dark mode styles */
+.dark {
+  background-color: var(--dark-bg) !important;
+  color: var(--dark-text) !important;
+}
+
+.dark body {
+  background-color: var(--dark-bg) !important;
+}
+
+/* Card components */
+.dark .card,
+.dark .bg-white {
+  background-color: var(--dark-card) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-text) !important;
+}
+
+/* Text colors */
+.dark .text-gray-900 {
+  color: var(--dark-text) !important;
+}
+
+.dark .text-gray-600 {
+  color: var(--dark-text-secondary) !important;
+}
+
+.dark .text-gray-500,
+.dark .text-gray-400 {
+  color: var(--dark-text-muted) !important;
+}
+
+/* Buttons */
+.dark .btn-secondary {
+  background-color: var(--dark-card) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-text) !important;
+}
+
+.dark .btn-secondary:hover {
+  background-color: rgba(48, 54, 61, 1) !important;
+}
+
+.dark .btn-primary {
+  background-color: var(--primary-color) !important;
+  color: #000 !important;
+}
+
+.dark .btn-primary:hover {
+  background-color: var(--primary-hover) !important;
+}
+
+/* Form elements */
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: var(--dark-card) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-text) !important;
+}
+
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 1px var(--primary-color) !important;
+}
+
+/* Tables */
+.dark table {
+  background-color: var(--dark-card) !important;
+}
+
+.dark th {
+  background-color: rgba(48, 54, 61, 1) !important;
+  color: var(--dark-text) !important;
+}
+
+.dark td {
+  border-color: var(--dark-border) !important;
+  color: var(--dark-text-secondary) !important;
+}
+
+.dark tr:hover {
+  background-color: rgba(48, 54, 61, 0.5) !important;
+}
+
+/* Borders */
+.dark .border-gray-200,
+.dark .border-gray-300 {
+  border-color: var(--dark-border) !important;
+}
+
+/* Backgrounds */
+.dark .bg-gray-50 {
+  background-color: rgba(31, 35, 40, 1) !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: rgba(48, 54, 61, 1) !important;
+}
+
+.dark .bg-gray-800 {
+  background-color: var(--dark-card) !important;
+}
+
+.dark .bg-gray-900 {
+  background-color: var(--dark-bg) !important;
+}
+
+/* Shadows */
+.dark .shadow-sm,
+.dark .shadow,
+.dark .shadow-lg {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Loading spinner */
+.dark .loading-spinner {
+  border-color: rgba(222, 175, 11, 0.2) !important;
+  border-top-color: var(--primary-color) !important;
+}
+
+/* Scrollbars */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: var(--dark-card);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--dark-border);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(94, 103, 118, 1);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Custom utility classes */
+.dark-mode-transition {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Apply transition to all elements */
+.dark * {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}

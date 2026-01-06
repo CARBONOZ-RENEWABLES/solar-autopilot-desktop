@@ -1,0 +1,173 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-200;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-600 focus:ring-primary-500;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500;
+  }
+  
+  .btn-success {
+    @apply bg-success text-white hover:bg-green-600 focus:ring-green-500;
+  }
+  
+  .btn-error {
+    @apply bg-error text-white hover:bg-red-600 focus:ring-red-500;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6 transition-all duration-200 hover:shadow-md;
+  }
+  
+  .card-header {
+    @apply flex items-center mb-4;
+  }
+  
+  .card-icon {
+    @apply w-12 h-12 rounded-full flex items-center justify-center text-white mr-4 flex-shrink-0;
+  }
+  
+  .card-title {
+    @apply text-lg font-semibold text-gray-900;
+  }
+  
+  .card-subtitle {
+    @apply text-sm text-gray-600 mt-1;
+  }
+  
+  .stat-card {
+    @apply bg-white rounded-xl p-6 shadow-sm border border-gray-200 transition-all duration-200 hover:shadow-md;
+  }
+  
+  .loading-spinner {
+    @apply animate-spin rounded-full h-8 w-8 border-b-2 border-primary;
+  }
+  
+  .progress-bar {
+    @apply h-2 bg-gray-200 rounded-full overflow-hidden;
+  }
+  
+  .progress-fill {
+    @apply h-full transition-all duration-500 ease-out;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-primary-600 bg-clip-text text-transparent;
+  }
+  
+  .glass {
+    @apply backdrop-blur-sm bg-white/80 border border-white/20;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+}
+
+/* Dark mode styles */
+.dark {
+  @apply bg-gray-900 text-gray-100;
+}
+
+.dark .card {
+  @apply bg-gray-800 border-gray-700;
+}
+
+.dark .stat-card {
+  @apply bg-gray-800 border-gray-700;
+}
+
+.dark .card-title {
+  @apply text-gray-100;
+}
+
+.dark .card-subtitle {
+  @apply text-gray-400;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400;
+}
+
+.dark ::-webkit-scrollbar-track {
+  @apply bg-gray-800;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-gray-600;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-500;
+}
+
+/* Animation keyframes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}

@@ -1,0 +1,15 @@
+{
+  "enabled": false,
+  "botToken": "",
+  "chatIds": [],
+  "notificationRules": [],
+  "enhancedFeatures": true,
+  "inverterTypeSupport": true,
+  "autoNotifications": false,
+  "aiChargingNotifications": {
+    "chargingStarted": false,
+    "chargingStopped": false,
+    "optimalPrice": false,
+    "negativePrice": false
+  }
+}
