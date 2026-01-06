@@ -22,6 +22,7 @@ import {
 import clsx from 'clsx'
 import AdvancedLoadingOverlay from '../components/AdvancedLoadingOverlay'
 import { usePageLoading } from '../hooks/useLoading'
+import { useTheme } from '../hooks/useTheme'
 
 export default function Settings() {
   const [activeCategory, setActiveCategory] = useState('general')

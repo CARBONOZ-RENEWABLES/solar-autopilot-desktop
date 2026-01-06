@@ -22,6 +22,12 @@ function App() {
   const { isDark, toggleTheme } = useTheme()
   const { isConfigured, loading: configLoading, checkConfiguration } = useConfigCheck()
 
+  // Apply theme to document immediately
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDark)
+    document.body.style.backgroundColor = isDark ? 'rgba(24, 27, 31, 1)' : ''
+  }, [isDark])
+
   useEffect(() => {
     checkSetupStatus()
   }, [isConfigured])
@@ -71,7 +77,7 @@ function App() {
 
   return (
     <div className={`min-h-screen ${isDark ? 'dark' : ''}`} style={{ backgroundColor: isDark ? 'rgba(24, 27, 31, 1)' : '' }}>
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <div className="flex h-screen" style={{ backgroundColor: isDark ? 'rgba(24, 27, 31, 1)' : '#f9fafb' }}>
           <Sidebar 
             isOpen={sidebarOpen} 

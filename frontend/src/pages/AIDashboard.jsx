@@ -19,6 +19,7 @@ import {
 import clsx from 'clsx'
 import AdvancedLoadingOverlay from '../components/AdvancedLoadingOverlay'
 import { usePageLoading } from '../hooks/useLoading'
+import { useTheme } from '../hooks/useTheme'
 
 export default function AIDashboard() {
   const [aiStatus, setAiStatus] = useState({ enabled: false, initialized: false })

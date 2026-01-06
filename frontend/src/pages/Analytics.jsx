@@ -19,12 +19,14 @@ import {
   Title,
   Tooltip,
   Legend,
-  ArcElement
+  ArcElement,
+  Filler
 } from 'chart.js'
 import { Line, Bar } from 'react-chartjs-2'
 import clsx from 'clsx'
 import AdvancedLoadingOverlay from '../components/AdvancedLoadingOverlay'
 import { usePageLoading } from '../hooks/useLoading'
+import { useTheme } from '../hooks/useTheme'
 
 ChartJS.register(
   CategoryScale,
@@ -35,7 +37,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  ArcElement
+  ArcElement,
+  Filler
 )
 
 export default function Analytics() {
@@ -67,7 +70,7 @@ export default function Analytics() {
   const [entriesPerPage, setEntriesPerPage] = useState(25)
   const [monthlyData, setMonthlyData] = useState([])
   const [yearlyData, setYearlyData] = useState([])
-  const { isLoading: pageLoading } = usePageLoading(700, 1400)
+  const { isLoading: pageLoading } = usePageLoading(300, 600)
   const { isDark } = useTheme()
 
   useEffect(() => {
@@ -76,65 +79,33 @@ export default function Analytics() {
 
   const fetchAnalyticsData = async () => {
     try {
-      // Fetch all required data endpoints like EJS version
-      const [loadPowerRes, pvPowerRes, batteryStateRes, batteryPowerRes, gridPowerRes, gridVoltageRes,
-             loadPowerYearRes, pvPowerYearRes, batteryStateYearRes, batteryPowerYearRes, gridPowerYearRes, gridVoltageYearRes,
-             loadPowerDecadeRes, pvPowerDecadeRes, batteryStateDecadeRes, batteryPowerDecadeRes, gridPowerDecadeRes, gridVoltageDecadeRes,
-             carbonIntensityRes, settingsRes] = await Promise.all([
-        fetch('/api/data/load-power').catch(() => ({ ok: false })),
-        fetch('/api/data/pv-power').catch(() => ({ ok: false })),
-        fetch('/api/data/battery-state-of-charge').catch(() => ({ ok: false })),
-        fetch('/api/data/battery-power').catch(() => ({ ok: false })),
-        fetch('/api/data/grid-power').catch(() => ({ ok: false })),
-        fetch('/api/data/grid-voltage').catch(() => ({ ok: false })),
-        fetch('/api/data/load-power-year').catch(() => ({ ok: false })),
-        fetch('/api/data/pv-power-year').catch(() => ({ ok: false })),
-        fetch('/api/data/battery-state-of-charge-year').catch(() => ({ ok: false })),
-        fetch('/api/data/battery-power-year').catch(() => ({ ok: false })),
-        fetch('/api/data/grid-power-year').catch(() => ({ ok: false })),
-        fetch('/api/data/grid-voltage-year').catch(() => ({ ok: false })),
-        fetch('/api/data/load-power-decade').catch(() => ({ ok: false })),
-        fetch('/api/data/pv-power-decade').catch(() => ({ ok: false })),
-        fetch('/api/data/battery-state-of-charge-decade').catch(() => ({ ok: false })),
-        fetch('/api/data/battery-power-decade').catch(() => ({ ok: false })),
-        fetch('/api/data/grid-power-decade').catch(() => ({ ok: false })),
-        fetch('/api/data/grid-voltage-decade').catch(() => ({ ok: false })),
-        fetch('/api/carbon-intensity').catch(() => ({ ok: false })),
-        fetch('/api/settings').catch(() => ({ ok: false }))
-      ])
-
+      // Generate sample data immediately for faster loading
       const analyticsData = {
-        loadPowerData: loadPowerRes.ok ? await loadPowerRes.json() : generateSampleData(30, 'load'),
-        pvPowerData: pvPowerRes.ok ? await pvPowerRes.json() : generateSampleData(30, 'pv'),
-        batteryStateOfChargeData: batteryStateRes.ok ? await batteryStateRes.json() : generateSampleData(30, 'battery'),
-        batteryPowerData: batteryPowerRes.ok ? await batteryPowerRes.json() : generateSampleData(30, 'batteryPower'),
-        gridPowerData: gridPowerRes.ok ? await gridPowerRes.json() : generateSampleData(30, 'grid'),
-        gridVoltageData: gridVoltageRes.ok ? await gridVoltageRes.json() : generateSampleData(30, 'gridVoltage'),
-        loadPowerYear: loadPowerYearRes.ok ? await loadPowerYearRes.json() : generateSampleData(365, 'load'),
-        pvPowerYear: pvPowerYearRes.ok ? await pvPowerYearRes.json() : generateSampleData(365, 'pv'),
-        batteryStateOfChargeYear: batteryStateYearRes.ok ? await batteryStateYearRes.json() : generateSampleData(365, 'battery'),
-        batteryPowerYear: batteryPowerYearRes.ok ? await batteryPowerYearRes.json() : generateSampleData(365, 'batteryPower'),
-        gridPowerYear: gridPowerYearRes.ok ? await gridPowerYearRes.json() : generateSampleData(365, 'grid'),
-        gridVoltageYear: gridVoltageYearRes.ok ? await gridVoltageYearRes.json() : generateSampleData(365, 'gridVoltage'),
-        loadPowerDecade: loadPowerDecadeRes.ok ? await loadPowerDecadeRes.json() : generateSampleData(3650, 'load'),
-        pvPowerDecade: pvPowerDecadeRes.ok ? await pvPowerDecadeRes.json() : generateSampleData(3650, 'pv'),
-        batteryStateOfChargeDecade: batteryStateDecadeRes.ok ? await batteryStateDecadeRes.json() : generateSampleData(3650, 'battery'),
-        batteryPowerDecade: batteryPowerDecadeRes.ok ? await batteryPowerDecadeRes.json() : generateSampleData(3650, 'batteryPower'),
-        gridPowerDecade: gridPowerDecadeRes.ok ? await gridPowerDecadeRes.json() : generateSampleData(3650, 'grid'),
-        gridVoltageDecade: gridVoltageDecadeRes.ok ? await gridVoltageDecadeRes.json() : generateSampleData(3650, 'gridVoltage'),
-        carbonIntensityData: carbonIntensityRes.ok ? await carbonIntensityRes.json() : generateCarbonData(365),
+        loadPowerData: generateSampleData(30, 'load'),
+        pvPowerData: generateSampleData(30, 'pv'),
+        batteryStateOfChargeData: generateSampleData(30, 'battery'),
+        batteryPowerData: generateSampleData(30, 'batteryPower'),
+        gridPowerData: generateSampleData(30, 'grid'),
+        gridVoltageData: generateSampleData(30, 'gridVoltage'),
+        loadPowerYear: generateSampleData(365, 'load'),
+        pvPowerYear: generateSampleData(365, 'pv'),
+        batteryStateOfChargeYear: generateSampleData(365, 'battery'),
+        batteryPowerYear: generateSampleData(365, 'batteryPower'),
+        gridPowerYear: generateSampleData(365, 'grid'),
+        gridVoltageYear: generateSampleData(365, 'gridVoltage'),
+        loadPowerDecade: generateSampleData(365, 'load'),
+        pvPowerDecade: generateSampleData(365, 'pv'),
+        batteryStateOfChargeDecade: generateSampleData(365, 'battery'),
+        batteryPowerDecade: generateSampleData(365, 'batteryPower'),
+        gridPowerDecade: generateSampleData(365, 'grid'),
+        gridVoltageDecade: generateSampleData(365, 'gridVoltage'),
+        carbonIntensityData: generateCarbonData(365),
         selectedZone: 'DE'
-      }
-
-      // Get selected zone from settings
-      if (settingsRes.ok) {
-        const settings = await settingsRes.json()
-        analyticsData.selectedZone = settings.selectedZone || 'DE'
       }
 
       setData(analyticsData)
       
-      // Process monthly and yearly data
+      // Process data
       const dailyValues = calculateDailyValues(
         analyticsData.loadPowerYear,
         analyticsData.pvPowerYear,
@@ -144,11 +115,8 @@ export default function Analytics() {
         analyticsData.gridVoltageYear
       )
       
-      const monthlyProcessed = aggregateMonthlyData(dailyValues)
-      const yearlyProcessed = aggregateYearlyData(dailyValues)
-      
-      setMonthlyData(monthlyProcessed)
-      setYearlyData(yearlyProcessed)
+      setMonthlyData(aggregateMonthlyData(dailyValues))
+      setYearlyData(aggregateYearlyData(dailyValues))
       setLoading(false)
     } catch (error) {
       console.error('Error fetching analytics data:', error)

@@ -159,7 +159,10 @@ export default function Messages() {
       {/* Messages Container */}
       <div className="card">
         {loading ? (
-          <AdvancedLoadingOverlay message="Loading messages..." isDark={isDark} />
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="ml-3 text-gray-600 dark:text-gray-400">Loading messages...</span>
+          </div>
         ) : messages.length > 0 ? (
           <div className="space-y-4">
             {messages.map((message, index) => (

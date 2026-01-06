@@ -103,19 +103,7 @@ export default function EnergyDashboard() {
     </div>
   )
 
-  const SystemStateCard = ({ icon: Icon, label, value, unit, color }) => (
-    <div className="stat-card">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center">
-          <Icon className={clsx('w-5 h-5 mr-2', `text-${color}-500`)} />
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</span>
-        </div>
-      </div>
-      <div className="text-2xl font-bold text-gray-900 dark:text-white">
-        {value}{unit}
-      </div>
-    </div>
-  )
+
 
   if (pageLoading || loading) {
     return <AdvancedLoadingOverlay message="Loading energy dashboard..." isDark={isDark} />
@@ -131,43 +119,67 @@ export default function EnergyDashboard() {
         </p>
       </div>
 
-      {/* System State Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        <SystemStateCard
-          icon={Zap}
-          label="Battery Level"
-          value={systemData.systemState.battery_soc || 0}
-          unit="%"
-          color="blue"
-        />
-        <SystemStateCard
-          icon={Sun}
-          label="Solar Power"
-          value={(systemData.systemState.pv_power || 0).toFixed(0)}
-          unit="W"
-          color="yellow"
-        />
-        <SystemStateCard
-          icon={Zap}
-          label="Grid Power"
-          value={(systemData.systemState.grid_power || 0).toFixed(0)}
-          unit="W"
-          color="purple"
-        />
-        <SystemStateCard
-          icon={Home}
-          label="Load Power"
-          value={(systemData.systemState.load || 0).toFixed(0)}
-          unit="W"
-          color="green"
-        />
-        <SystemStateCard
-          icon={Zap}
-          label="Battery Power"
-          value={(systemData.systemState.battery_power || 0).toFixed(0)}
-          unit="W"
-          color="indigo"
-        />
+      {/* Power Monitoring Cards with Grafana Integration */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Solar Power */}
+        <div className="card p-0 overflow-hidden">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center">
+              <Sun className="w-5 h-5 mr-2 text-yellow-500" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Solar Power</span>
+            </div>
+          </div>
+          <iframe
+            src={`/grafana/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=1&theme=${isDark ? 'dark' : 'light'}&kiosk=tv`}
+            className="w-full h-48 border-0"
+            title="Solar Power"
+          />
+        </div>
+
+        {/* Grid Power */}
+        <div className="card p-0 overflow-hidden">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center">
+              <Zap className="w-5 h-5 mr-2 text-purple-500" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Grid Power</span>
+            </div>
+          </div>
+          <iframe
+            src={`/grafana/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=2&theme=${isDark ? 'dark' : 'light'}&kiosk=tv`}
+            className="w-full h-48 border-0"
+            title="Grid Power"
+          />
+        </div>
+
+        {/* Load Power */}
+        <div className="card p-0 overflow-hidden">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center">
+              <Home className="w-5 h-5 mr-2 text-green-500" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Load Power</span>
+            </div>
+          </div>
+          <iframe
+            src={`/grafana/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=3&theme=${isDark ? 'dark' : 'light'}&kiosk=tv`}
+            className="w-full h-48 border-0"
+            title="Load Power"
+          />
+        </div>
+
+        {/* Battery Power */}
+        <div className="card p-0 overflow-hidden">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center">
+              <Zap className="w-5 h-5 mr-2 text-indigo-500" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Battery Power</span>
+            </div>
+          </div>
+          <iframe
+            src={`/grafana/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=4&theme=${isDark ? 'dark' : 'light'}&kiosk=tv`}
+            className="w-full h-48 border-0"
+            title="Battery Power"
+          />
+        </div>
       </div>
 
       {/* Main Metrics */}
@@ -206,45 +218,7 @@ export default function EnergyDashboard() {
         />
       </div>
 
-      {/* Grafana Dashboard Embed */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card p-0 overflow-hidden">
-          <iframe
-            src="http://localhost:3001/d/solar_power_dashboard/solar_power_dashboard?orgId=1&kiosk=1&refresh=1s&theme=light"
-            className="w-full h-96 border-0"
-            title="Solar Power Dashboard"
-          />
-        </div>
-        
-        <div className="card p-0 overflow-hidden">
-          <iframe
-            src="http://localhost:3001/d-solo/solar_dashboard?orgId=1&refresh=1m&panelId=2&theme=light"
-            className="w-full h-96 border-0"
-            title="Solar Overview"
-          />
-        </div>
-      </div>
 
-      {/* Battery Monitoring */}
-      <div className="card p-0 overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-3 h-64">
-          <iframe
-            src="http://localhost:3001/d-solo/solar_dashboard?orgId=1&refresh=1m&panelId=116&theme=light"
-            className="w-full h-full border-0"
-            title="Battery SOC"
-          />
-          <iframe
-            src="http://localhost:3001/d-solo/solar_dashboard?orgId=1&refresh=1m&panelId=139&theme=light"
-            className="w-full h-full border-0"
-            title="Battery Voltage"
-          />
-          <iframe
-            src="http://localhost:3001/d-solo/solar_dashboard?orgId=1&refresh=1m&panelId=135&theme=light"
-            className="w-full h-full border-0"
-            title="Battery Current"
-          />
-        </div>
-      </div>
 
       {/* Warnings */}
       {warnings.length > 0 && (

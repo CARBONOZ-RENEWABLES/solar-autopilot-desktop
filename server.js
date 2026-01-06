@@ -1710,13 +1710,63 @@ setTimeout(() => {
   refreshPricingData();
 }, 5000);
 
-// ================ ROUTERS ================
-
-
-
-app.get('/', async (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+// Configuration check API - MUST BE BEFORE OTHER ROUTES
+app.get('/api/config/check', (req, res) => {
+  try {
+    const config = {
+      inverter_number: options.inverter_number,
+      battery_number: options.battery_number,
+      mqtt_topic_prefix: options.mqtt_topic_prefix,
+      mqtt_host: options.mqtt_host,
+      mqtt_port: options.mqtt_port,
+      mqtt_username: options.mqtt_username,
+      mqtt_password: options.mqtt_password
+    }
+    
+    res.json({
+      success: true,
+      config: config
+    })
+  } catch (error) {
+    console.error('Error checking configuration:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check configuration'
+    })
+  }
 })
+
+app.post('/api/config/save', (req, res) => {
+  try {
+    const newConfig = req.body
+    
+    // Update options object
+    Object.keys(newConfig).forEach(key => {
+      if (newConfig[key] !== undefined) {
+        options[key] = newConfig[key]
+      }
+    })
+    
+    // Save to options.json file
+    const optionsPath = fs.existsSync('/data/options.json') ? '/data/options.json' : './options.json'
+    fs.writeFileSync(optionsPath, JSON.stringify(newConfig, null, 2))
+    
+    console.log('Configuration saved successfully')
+    
+    res.json({
+      success: true,
+      message: 'Configuration saved successfully'
+    })
+  } catch (error) {
+    console.error('Error saving configuration:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save configuration'
+    })
+  }
+})
+
+
 
 app.get('/energy-dashboard', async (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
@@ -1766,14 +1816,7 @@ app.get('/notifications', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
 })
 
-// Catch-all handler: send back React's index.html file for any non-API routes
-app.get('*', (req, res) => {
-  // Don't serve React for API routes
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ error: 'API endpoint not found' })
-  }
-  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
-})
+
 
   app.get('/api/hassio_ingress/:token/ai-dashboard', (req, res) => {
     res.redirect(`${process.env.INGRESS_PATH || ''}/ai-dashboard`);
@@ -5366,61 +5409,7 @@ cron.schedule('*/5 * * * *', async () => {
   }
 });
 
-// Configuration check API
-app.get('/api/config/check', (req, res) => {
-  try {
-    const config = {
-      inverter_number: options.inverter_number,
-      battery_number: options.battery_number,
-      mqtt_topic_prefix: options.mqtt_topic_prefix,
-      mqtt_host: options.mqtt_host,
-      mqtt_port: options.mqtt_port,
-      mqtt_username: options.mqtt_username,
-      mqtt_password: options.mqtt_password
-    }
-    
-    res.json({
-      success: true,
-      config: config
-    })
-  } catch (error) {
-    console.error('Error checking configuration:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Failed to check configuration'
-    })
-  }
-})
 
-app.post('/api/config/save', (req, res) => {
-  try {
-    const newConfig = req.body
-    
-    // Update options object
-    Object.keys(newConfig).forEach(key => {
-      if (newConfig[key] !== undefined) {
-        options[key] = newConfig[key]
-      }
-    })
-    
-    // Save to options.json file
-    const optionsPath = fs.existsSync('/data/options.json') ? '/data/options.json' : './options.json'
-    fs.writeFileSync(optionsPath, JSON.stringify(newConfig, null, 2))
-    
-    console.log('Configuration saved successfully')
-    
-    res.json({
-      success: true,
-      message: 'Configuration saved successfully'
-    })
-  } catch (error) {
-    console.error('Error saving configuration:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Failed to save configuration'
-    })
-  }
-})
 
 // Enhanced logging for startup
 console.log('\n🔋 ========== ENHANCED DYNAMIC PRICING SYSTEM ==========');
@@ -5551,6 +5540,15 @@ app.get('/api/health', (req, res) => {
     });
   }
 });
+
+// Catch-all handler: send back React's index.html file for any non-API routes
+app.get('*', (req, res) => {
+  // Don't serve React for API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API endpoint not found' })
+  }
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+})
 
 app.use((req, res, next) => {
   // Log the 404 for debugging

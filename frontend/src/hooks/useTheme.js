@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react'
 
 export function useTheme() {
-  const [isDark, setIsDark] = useState(false)
-
-  useEffect(() => {
-    // Initialize theme on client side
+  const [isDark, setIsDark] = useState(() => {
+    // Initialize from localStorage or system preference
     const saved = localStorage.getItem('theme')
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const shouldBeDark = saved === 'dark' || (!saved && prefersDark)
-    setIsDark(shouldBeDark)
-  }, [])
+    if (saved) {
+      return saved === 'dark'
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+  })
 
   useEffect(() => {
     const root = window.document.documentElement

@@ -1,0 +1,29 @@
+
+> carbonoz-solarautopilot-frontend@0.0.0 dev
+> vite
+
+Port 3000 is in use, trying another one...
+
+  VITE v4.5.14  ready in 1131 ms
+
+  ➜  Local:   http://localhost:3001/
+  ➜  Network: use --host to expose
+(node:11643) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+5:13:12 PM [vite] hmr update /src/pages/EnergyDashboard.jsx, /src/index.css
+5:13:29 PM [vite] hmr update /src/pages/EnergyDashboard.jsx, /src/index.css
+5:13:41 PM [vite] hmr update /src/pages/EnergyDashboard.jsx, /src/index.css
+5:14:18 PM [vite] hmr update /src/pages/Chart.jsx, /src/index.css
+5:14:37 PM [vite] hmr update /src/pages/Chart.jsx, /src/index.css
+5:14:49 PM [vite] hmr update /src/pages/Chart.jsx, /src/index.css
+5:21:00 PM [vite] hmr update /src/pages/Analytics.jsx, /src/index.css
+5:25:27 PM [vite] hmr update /src/pages/Analytics.jsx, /src/index.css
+5:28:55 PM [vite] hmr update /src/pages/Settings.jsx, /src/index.css
+5:29:02 PM [vite] hmr update /src/pages/Analytics.jsx, /src/index.css
+5:29:04 PM [vite] hmr update /src/pages/Analytics.jsx, /src/index.css
+5:29:11 PM [vite] hmr update /src/pages/Analytics.jsx, /src/index.css
+5:31:48 PM [vite] hmr update /src/App.jsx, /src/index.css
+5:32:56 PM [vite] hmr update /src/pages/Messages.jsx, /src/index.css
+5:35:30 PM [vite] hmr update /src/pages/AIDashboard.jsx, /src/index.css
+5:40:59 PM [vite] hmr update /src/App.jsx, /src/index.css, /src/pages/EnergyDashboard.jsx, /src/pages/Messages.jsx, /src/pages/Notifications.jsx, /src/pages/Chart.jsx, /src/pages/Results.jsx, /src/pages/ConfigSetup.jsx
+5:41:17 PM [vite] hmr update /src/App.jsx, /src/index.css
