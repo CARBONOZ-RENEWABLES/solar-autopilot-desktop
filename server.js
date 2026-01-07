@@ -2826,6 +2826,26 @@ app.get('/notifications', (req, res) => {
       });
     }
     
+    // Ensure today's date is included even if no data exists
+    const today = new Date().toISOString().split('T')[0];
+    const hasToday = results.some(item => item.date === today);
+    
+    if (!hasToday) {
+      results.push({
+        date: today,
+        gridEnergy: 0,
+        solarEnergy: 0,
+        loadEnergy: 0,
+        batteryCharged: 0,
+        batteryDischarged: 0,
+        gridExported: 0,
+        selfSufficiencyScore: 0,
+        unavoidableEmissions: 0,
+        avoidedEmissions: 0,
+        carbonIntensity: 0
+      });
+    }
+    
     return results;
   }
   
