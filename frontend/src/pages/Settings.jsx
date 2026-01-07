@@ -23,6 +23,7 @@ import clsx from 'clsx'
 import AdvancedLoadingOverlay from '../components/AdvancedLoadingOverlay'
 import { usePageLoading } from '../hooks/useLoading'
 import { useTheme } from '../hooks/useTheme'
+import { useWebSocket } from '../hooks/useWebSocket'
 
 export default function Settings() {
   const [activeCategory, setActiveCategory] = useState('general')
@@ -40,7 +41,11 @@ export default function Settings() {
       port: 1883,
       username: '',
       password: '',
-      topicPrefix: 'solar'
+      topicPrefix: 'solar',
+      clientId: '',
+      clientSecret: '',
+      inverterNumber: 1,
+      batteryNumber: 1
     }
   })
   const [showApiKey, setShowApiKey] = useState(false)
@@ -58,6 +63,18 @@ export default function Settings() {
   const [saving, setSaving] = useState(false)
   const { isLoading: pageLoading } = usePageLoading(500, 1000)
   const { isDark } = useTheme()
+
+  // WebSocket connection for real-time updates
+  const { isConnected: wsConnected } = useWebSocket(
+    `ws://${window.location.hostname}:8000`,
+    (message) => {
+      if (message.type === 'config_updated') {
+        console.log('Configuration updated via WebSocket')
+        // Reload settings when configuration is updated
+        loadSettings()
+      }
+    }
+  )
 
   const zones = [
     { code: 'DE', zoneName: 'Germany' },
@@ -126,6 +143,59 @@ export default function Settings() {
 
   const loadSettings = async () => {
     try {
+      // Load current settings from options.json
+      const configResponse = await fetch('/api/config/check')
+      if (configResponse.ok) {
+        const configData = await configResponse.json()
+        if (configData.success) {
+          setSettings(prev => ({
+            ...prev,
+            mqtt: {
+              ...prev.mqtt,
+              host: configData.config.mqtt_host || 'localhost',
+              port: configData.config.mqtt_port || 1883,
+              username: configData.config.mqtt_username || '',
+              password: configData.config.mqtt_password || '',
+              topicPrefix: configData.config.mqtt_topic_prefix || 'solar',
+              clientId: configData.config.clientId || '',
+              clientSecret: configData.config.clientSecret || '',
+              inverterNumber: configData.config.inverter_number || 1,
+              batteryNumber: configData.config.battery_number || 1
+            },
+            timezone: configData.config.timezone || 'UTC'
+          }))
+        }
+      }
+
+      // Load general settings from settings.json
+      const settingsResponse = await fetch('/api/settings')
+      if (settingsResponse.ok) {
+        const settingsData = await settingsResponse.json()
+        if (settingsData.success) {
+          setSettings(prev => ({
+            ...prev,
+            apiKey: settingsData.apiKey || '',
+            selectedZone: settingsData.selectedZone || ''
+          }))
+        }
+      }
+
+      // Load Tibber settings
+      const tibberResponse = await fetch('/api/tibber/config')
+      if (tibberResponse.ok) {
+        const tibberData = await tibberResponse.json()
+        if (tibberData.success) {
+          setSettings(prev => ({
+            ...prev,
+            tibber: {
+              enabled: tibberData.config.enabled || false,
+              apiKey: tibberData.config.apiKey || '',
+              country: tibberData.config.country || 'DE'
+            }
+          }))
+        }
+      }
+      
       // Load range settings from backend
       const rangeResponse = await fetch('/api/solar-data')
       if (rangeResponse.ok) {
@@ -162,6 +232,99 @@ export default function Settings() {
 
   const showToast = (message, type) => {
     console.log(`${type.toUpperCase()}: ${message}`)
+  }
+
+  const saveSettings = async () => {
+    setSaving(true)
+    try {
+      // Save general settings (apiKey, selectedZone) to settings.json
+      const generalSettingsResponse = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          apiKey: settings.apiKey,
+          selectedZone: settings.selectedZone,
+          timezone: settings.timezone
+        })
+      })
+      
+      if (!generalSettingsResponse.ok) {
+        throw new Error('Failed to save general settings')
+      }
+      
+      // Save MQTT configuration to options.json
+      const configData = {
+        mqtt_host: settings.mqtt.host,
+        mqtt_port: settings.mqtt.port,
+        mqtt_username: settings.mqtt.username,
+        mqtt_password: settings.mqtt.password,
+        mqtt_topic_prefix: settings.mqtt.topicPrefix,
+        clientId: settings.mqtt.clientId,
+        clientSecret: settings.mqtt.clientSecret,
+        inverter_number: settings.mqtt.inverterNumber,
+        battery_number: settings.mqtt.batteryNumber,
+        timezone: settings.timezone
+      }
+      
+      const configResponse = await fetch('/api/config/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(configData)
+      })
+      
+      if (!configResponse.ok) {
+        throw new Error('Failed to save configuration')
+      }
+      
+      // Save Tibber settings
+      const tibberResponse = await fetch('/api/tibber/config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          enabled: settings.tibber.enabled,
+          apiKey: settings.tibber.apiKey,
+          country: settings.tibber.country
+        })
+      })
+      
+      if (!tibberResponse.ok) {
+        throw new Error('Failed to save Tibber configuration')
+      }
+      
+      showToast('Settings saved successfully', 'success')
+    } catch (error) {
+      console.error('Error saving settings:', error)
+      showToast('Failed to save settings', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const saveRangeSettings = async () => {
+    try {
+      const response = await fetch('/api/update-panel-config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(rangeSettings)
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to save range settings')
+      }
+      
+      showToast('Range settings saved successfully', 'success')
+    } catch (error) {
+      console.error('Error saving range settings:', error)
+      showToast('Failed to save range settings', 'error')
+    }
   }
 
   const StatusIndicator = ({ status, label }) => {
@@ -227,7 +390,7 @@ export default function Settings() {
         
         <div className="flex space-x-3 mt-4 lg:mt-0">
           <button
-            onClick={() => showToast('Settings saved', 'success')}
+            onClick={saveSettings}
             disabled={saving}
             className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 flex items-center"
           >
@@ -368,6 +531,10 @@ export default function Settings() {
                   status={status.zone} 
                   label={status.zone === 'configured' ? 'Zone Configured' : 'Zone Not Set'} 
                 />
+                <StatusIndicator 
+                  status={wsConnected ? 'connected' : 'disconnected'} 
+                  label={wsConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'} 
+                />
               </div>
             </SettingCard>
           </>
@@ -414,7 +581,7 @@ export default function Settings() {
             <SettingCard
               icon={Key}
               title="MQTT Authentication"
-              description="Username and password for MQTT broker (optional)"
+              description="Username, password, and optional client credentials"
             >
               <div className="space-y-3">
                 <div>
@@ -456,6 +623,36 @@ export default function Settings() {
                     </button>
                   </div>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Client ID (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.mqtt.clientId}
+                    onChange={(e) => setSettings(prev => ({
+                      ...prev,
+                      mqtt: { ...prev.mqtt, clientId: e.target.value }
+                    }))}
+                    placeholder="MQTT client ID (optional)"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Client Secret (optional)
+                  </label>
+                  <input
+                    type="password"
+                    value={settings.mqtt.clientSecret}
+                    onChange={(e) => setSettings(prev => ({
+                      ...prev,
+                      mqtt: { ...prev.mqtt, clientSecret: e.target.value }
+                    }))}
+                    placeholder="MQTT client secret (optional)"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                  />
+                </div>
               </div>
             </SettingCard>
 
@@ -477,6 +674,47 @@ export default function Settings() {
               <p className="text-xs text-gray-500 mt-1">
                 Topics will be: {settings.mqtt.topicPrefix || 'solar'}/inverter/1/...
               </p>
+            </SettingCard>
+
+            <SettingCard
+              icon={Sliders}
+              title="System Configuration"
+              description="Number of inverters and batteries in your system"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Number of Inverters
+                  </label>
+                  <input
+                    type="number"
+                    value={settings.mqtt.inverterNumber}
+                    onChange={(e) => setSettings(prev => ({
+                      ...prev,
+                      mqtt: { ...prev.mqtt, inverterNumber: parseInt(e.target.value) || 1 }
+                    }))}
+                    min="1"
+                    max="10"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Number of Batteries
+                  </label>
+                  <input
+                    type="number"
+                    value={settings.mqtt.batteryNumber}
+                    onChange={(e) => setSettings(prev => ({
+                      ...prev,
+                      mqtt: { ...prev.mqtt, batteryNumber: parseInt(e.target.value) || 1 }
+                    }))}
+                    min="1"
+                    max="10"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                  />
+                </div>
+              </div>
             </SettingCard>
 
             <SettingCard
@@ -734,7 +972,9 @@ export default function Settings() {
                       Reset
                     </button>
                     <button
-                      onClick={() => showToast(`${config.title || key} settings saved`, 'success')}
+                      onClick={() => {
+                        saveRangeSettings()
+                      }}
                       className="px-3 py-1 text-sm bg-primary text-white rounded hover:bg-primary-600 flex items-center"
                     >
                       <Save className="w-3 h-3 mr-1" />

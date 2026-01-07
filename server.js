@@ -35,6 +35,32 @@ memoryMonitor.start();
 
 let aiEngineInitialized = false;
 
+// WebSocket Server for real-time communication
+const wss = new WebSocket.Server({ port: socketPort })
+console.log(`WebSocket server running on port ${socketPort}`)
+
+wss.on('connection', (ws) => {
+  ws.on('message', (message) => {
+    try {
+      const data = JSON.parse(message)
+      if (data.type === 'ping') {
+        ws.send(JSON.stringify({ type: 'pong' }))
+      }
+    } catch (error) {
+      console.error('Error handling WebSocket message:', error)
+    }
+  })
+})
+
+// Function to broadcast to all connected clients
+function broadcastToClients(data) {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(data))
+    }
+  })
+}
+
 
 
 const GRAFANA_URL = 'http://localhost:3001';
@@ -281,6 +307,8 @@ const mqttConfig = {
   port: options.mqtt_port,
   username: options.mqtt_username,
   password: options.mqtt_password,
+  clientId: options.clientId,
+  clientSecret: options.clientSecret,
   reconnectPeriod: 5000,
   connectTimeout: 30000
 }
@@ -1725,7 +1753,10 @@ app.get('/api/config/check', (req, res) => {
       mqtt_host: options.mqtt_host,
       mqtt_port: options.mqtt_port,
       mqtt_username: options.mqtt_username,
-      mqtt_password: options.mqtt_password
+      mqtt_password: options.mqtt_password,
+      clientId: options.clientId,
+      clientSecret: options.clientSecret,
+      timezone: options.timezone
     }
     
     res.json({
@@ -1741,9 +1772,61 @@ app.get('/api/config/check', (req, res) => {
   }
 })
 
+// Settings endpoints for settings.json
+app.get('/api/settings', (req, res) => {
+  try {
+    let settings = {}
+    if (fs.existsSync(SETTINGS_FILE)) {
+      settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'))
+    }
+    
+    res.json({
+      success: true,
+      ...settings
+    })
+  } catch (error) {
+    console.error('Error reading settings:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to read settings'
+    })
+  }
+})
+
+app.post('/api/settings', (req, res) => {
+  try {
+    const { apiKey, selectedZone, timezone } = req.body
+    
+    let settings = {}
+    if (fs.existsSync(SETTINGS_FILE)) {
+      settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'))
+    }
+    
+    // Update settings
+    if (apiKey !== undefined) settings.apiKey = apiKey
+    if (selectedZone !== undefined) settings.selectedZone = selectedZone
+    if (timezone !== undefined) settings.timezone = timezone
+    
+    // Save to settings.json
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2))
+    
+    res.json({
+      success: true,
+      message: 'Settings saved successfully'
+    })
+  } catch (error) {
+    console.error('Error saving settings:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save settings'
+    })
+  }
+})
+
 app.post('/api/config/save', (req, res) => {
   try {
     const newConfig = req.body
+    const oldMqttConfig = { ...mqttConfig }
     
     // Update options object
     Object.keys(newConfig).forEach(key => {
@@ -1754,9 +1837,44 @@ app.post('/api/config/save', (req, res) => {
     
     // Save to options.json file
     const optionsPath = fs.existsSync('/data/options.json') ? '/data/options.json' : './options.json'
-    fs.writeFileSync(optionsPath, JSON.stringify(newConfig, null, 2))
+    fs.writeFileSync(optionsPath, JSON.stringify(options, null, 2))
     
     console.log('Configuration saved successfully')
+    
+    // Check if MQTT configuration changed
+    const mqttChanged = (
+      oldMqttConfig.host !== options.mqtt_host ||
+      oldMqttConfig.port !== options.mqtt_port ||
+      oldMqttConfig.username !== options.mqtt_username ||
+      oldMqttConfig.password !== options.mqtt_password ||
+      oldMqttConfig.clientId !== options.clientId
+    )
+    
+    if (mqttChanged) {
+      console.log('MQTT configuration changed, reconnecting...')
+      // Update MQTT config
+      mqttConfig.host = options.mqtt_host
+      mqttConfig.port = options.mqtt_port
+      mqttConfig.username = options.mqtt_username
+      mqttConfig.password = options.mqtt_password
+      mqttConfig.clientId = options.clientId
+      mqttConfig.clientSecret = options.clientSecret
+      
+      // Reconnect MQTT client
+      if (mqttClient) {
+        mqttClient.end()
+      }
+      setTimeout(() => {
+        connectToMqtt()
+      }, 1000)
+    }
+    
+    // Broadcast configuration update via WebSocket
+    broadcastToClients({
+      type: 'config_updated',
+      config: options,
+      timestamp: new Date().toISOString()
+    })
     
     res.json({
       success: true,
@@ -4421,13 +4539,19 @@ function getMappingInfoForSettings(availableSettings) {
 
 // Connect to MQTT with robust error handling
 function connectToMqtt() {
-    mqttClient = mqtt.connect(`mqtt://${mqttConfig.host}:${mqttConfig.port}`, {
+    const connectionOptions = {
       username: mqttConfig.username,
       password: mqttConfig.password,
-      clientId: mqttConfig.clientId,
       reconnectPeriod: mqttConfig.reconnectPeriod,
       connectTimeout: mqttConfig.connectTimeout
-    })
+    }
+    
+    // Add clientId if provided
+    if (mqttConfig.clientId && mqttConfig.clientId.trim() !== '') {
+      connectionOptions.clientId = mqttConfig.clientId
+    }
+    
+    mqttClient = mqtt.connect(`mqtt://${mqttConfig.host}:${mqttConfig.port}`, connectionOptions)
   
 mqttClient.on('connect', async () => {
       try {

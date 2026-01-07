@@ -46,6 +46,6 @@ schema:
   mqtt_topic_prefix: "str"
   battery_number: "int(1,)"
   inverter_number: "int(1,)"
-  clientId: "str"
-  clientSecret: "password"
+  clientId: "str?"
+  clientSecret: "password?"
 panel: true

@@ -51,6 +51,8 @@ export const apiService = {
   // Settings
   getSettings: () => api.get('/settings'),
   updateSettings: (settings) => api.post('/settings', settings),
+  getConfig: () => api.get('/config/check'),
+  saveConfig: (config) => api.post('/config/save', config),
   
   // Analytics
   getAnalytics: (period = '30d') => api.get(`/analytics?period=${period}`),

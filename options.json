@@ -6,6 +6,8 @@
   "mqtt_port": 1883,
   "mqtt_username": "Elite",
   "mqtt_password": "jHIJES529hhWWjjIsyS",
+  "clientId": "",
+  "clientSecret": "",
   "tibber_enabled": false,
   "tibber_api_key": "",
   "tibber_country": "DE",
