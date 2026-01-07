@@ -46,12 +46,38 @@ export default function EnergyDashboard() {
       const systemResponse = await fetch('/api/system-state')
       const systemData = await systemResponse.json()
       
-      if (systemData.current_state) {
-        setSystemData(prev => ({
-          ...prev,
-          systemState: systemData.current_state
-        }))
+      // Fetch today's results data
+      const todayResponse = await fetch('/api/results/data?period=today')
+      const todayResult = await todayResponse.json()
+      
+      let todayData = {
+        date: format(new Date(), 'yyyy-MM-dd'),
+        avoidedEmissions: 0,
+        unavoidableEmissions: 0,
+        selfSufficiencyScore: 0,
+        gridEnergy: 0,
+        solarEnergy: 0,
+        carbonIntensity: 0
       }
+      
+      if (todayResult.success && todayResult.data.length > 0) {
+        const data = todayResult.data[0]
+        todayData = {
+          date: data.date,
+          avoidedEmissions: data.avoidedEmissions || 0,
+          unavoidableEmissions: data.unavoidableEmissions || 0,
+          selfSufficiencyScore: data.selfSufficiencyScore || 0,
+          gridEnergy: data.gridEnergy || 0,
+          solarEnergy: data.solarEnergy || 0,
+          carbonIntensity: data.carbonIntensity || 0
+        }
+      }
+      
+      setSystemData(prev => ({
+        ...prev,
+        todayData,
+        systemState: systemData.current_state || prev.systemState
+      }))
       
       setLoading(false)
     } catch (error) {
