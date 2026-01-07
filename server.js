@@ -1950,13 +1950,56 @@ app.get('/notifications', (req, res) => {
   });
 
 
-  // Remove carbon intensity endpoints that cause errors
+  // Carbon intensity endpoint
   app.get('/api/carbon-intensity/:zone', async (req, res) => {
-    res.json({ 
-      success: false,
-      error: 'Carbon intensity data not available',
-      data: []
-    });
+    try {
+      const { zone } = req.params;
+      const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
+      
+      if (!settings.apiKey) {
+        return res.json({ 
+          success: false,
+          error: 'API key not configured',
+          data: [],
+          carbonIntensity: 0
+        });
+      }
+      
+      const response = await axios.get('https://api.electricitymap.org/v3/carbon-intensity/latest', {
+        params: { zone },
+        headers: { 'auth-token': settings.apiKey },
+        timeout: 10000
+      });
+      
+      res.json({ 
+        success: true,
+        data: response.data,
+        carbonIntensity: response.data.carbonIntensity || 0
+      });
+    } catch (error) {
+      console.error('Carbon intensity API error:', error.message);
+      res.json({ 
+        success: false,
+        error: error.response?.status === 401 ? 'Invalid API key' : 'API request failed',
+        data: [],
+        carbonIntensity: 0
+      });
+    }
+  });
+
+  // Get zones endpoint
+  app.get('/api/zones', async (req, res) => {
+    try {
+      const zonesResult = await getZones();
+      res.json(zonesResult);
+    } catch (error) {
+      console.error('Error fetching zones:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to fetch zones',
+        zones: []
+      });
+    }
   });
 
   // Results API endpoint without carbon intensity
@@ -2002,6 +2045,7 @@ app.get('/notifications', (req, res) => {
       
       if (loadPowerData.length === 0 && pvPowerData.length === 0) {
         const sampleData = generateSampleResultsData(period);
+        console.log('Generated sample data with carbon intensity:', sampleData[0]?.carbonIntensity);
         return res.json({
           success: true,
           data: sampleData,
@@ -2019,15 +2063,39 @@ app.get('/notifications', (req, res) => {
         gridVoltageData
       );
       
+      // Fetch carbon intensity data for today
+      let carbonIntensity = 0;
+      try {
+        const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
+        if (settings.apiKey && settings.selectedZone) {
+          console.log(`Fetching carbon intensity for zone: ${settings.selectedZone}`);
+          const carbonResponse = await axios.get('https://api.electricitymap.org/v3/carbon-intensity/latest', {
+            params: { zone: settings.selectedZone },
+            headers: { 'auth-token': settings.apiKey },
+            timeout: 10000
+          });
+          carbonIntensity = carbonResponse.data.carbonIntensity || 0;
+          console.log(`Carbon intensity fetched: ${carbonIntensity} g/kWh`);
+        } else {
+          console.log('Missing API key or zone for carbon intensity');
+        }
+      } catch (carbonError) {
+        console.error('Carbon intensity fetch failed:', carbonError.message);
+        if (carbonError.response) {
+          console.error('Response status:', carbonError.response.status);
+          console.error('Response data:', carbonError.response.data);
+        }
+      }
+      
       const formattedData = resultsData.map(item => ({
         date: item.date,
         gridEnergy: item.gridEnergy || 0,
         solarEnergy: item.solarEnergy || 0,
         loadEnergy: item.loadEnergy || 0,
         selfSufficiencyScore: item.selfSufficiencyScore || 0,
-        unavoidableEmissions: 0,
-        avoidedEmissions: 0,
-        carbonIntensity: 0
+        unavoidableEmissions: (item.gridEnergy || 0) * (carbonIntensity / 1000),
+        avoidedEmissions: (item.solarEnergy || 0) * (carbonIntensity / 1000),
+        carbonIntensity: carbonIntensity
       }));
       
       // Filter to only today's data if period is 'today'
@@ -2043,9 +2111,9 @@ app.get('/notifications', (req, res) => {
             gridEnergy: todayData.reduce((sum, item) => sum + item.gridEnergy, 0),
             solarEnergy: todayData.reduce((sum, item) => sum + item.solarEnergy, 0),
             loadEnergy: todayData.reduce((sum, item) => sum + item.loadEnergy, 0),
-            unavoidableEmissions: 0,
-            avoidedEmissions: 0,
-            carbonIntensity: 0
+            unavoidableEmissions: todayData.reduce((sum, item) => sum + item.unavoidableEmissions, 0),
+            avoidedEmissions: todayData.reduce((sum, item) => sum + item.avoidedEmissions, 0),
+            carbonIntensity: carbonIntensity
           };
           const totalEnergy = aggregated.gridEnergy + aggregated.solarEnergy;
           aggregated.selfSufficiencyScore = totalEnergy > 0 ? (aggregated.solarEnergy / totalEnergy) * 100 : 0;
@@ -2106,9 +2174,9 @@ app.get('/notifications', (req, res) => {
         solarEnergy: parseFloat(solarEnergy.toFixed(2)),
         loadEnergy: parseFloat(loadEnergy.toFixed(2)),
         selfSufficiencyScore: parseFloat(selfSufficiencyScore.toFixed(2)),
-        unavoidableEmissions: 0,
-        avoidedEmissions: 0,
-        carbonIntensity: 0
+        unavoidableEmissions: parseFloat((gridEnergy * 0.418).toFixed(3)),
+        avoidedEmissions: parseFloat((solarEnergy * 0.418).toFixed(3)),
+        carbonIntensity: 418
       });
     }
     

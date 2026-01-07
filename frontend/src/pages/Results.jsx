@@ -70,10 +70,22 @@ export default function Results() {
   const loadPeriodData = async () => {
     setLoading(true)
     try {
+      console.log(`Loading data for period: ${selectedPeriod}`);
       const response = await fetch(`/api/results/data?period=${selectedPeriod}`)
       const result = await response.json()
+      console.log('Results API response:', result);
+      
       if (result.success) {
         setData(prev => ({ ...prev, [selectedPeriod]: result.data }))
+        console.log(`Loaded ${result.data.length} records for ${selectedPeriod}`);
+        
+        // Log carbon intensity data for debugging
+        if (result.data.length > 0) {
+          const sampleRecord = result.data[0];
+          console.log('Sample record carbon intensity:', sampleRecord.carbonIntensity);
+        }
+      } else {
+        console.error('API returned error:', result.error);
       }
       setLoading(false)
     } catch (error) {
@@ -95,7 +107,7 @@ export default function Results() {
       avoided: totalAvoided,
       efficiency: avgEfficiency,
       solar: totalSolar,
-      carbon: avgCarbon
+      carbon: Math.round(avgCarbon) // Round to nearest integer for display
     }
   }
 
