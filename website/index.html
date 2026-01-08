@@ -15,11 +15,14 @@
         .download-card { background: white; border-radius: 15px; padding: 2rem; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); transition: transform 0.3s; }
         .download-card:hover { transform: translateY(-5px); }
         .download-card h3 { font-size: 1.5rem; margin-bottom: 1rem; color: #333; }
-        .download-btn { display: inline-block; background: #4CAF50; color: white; padding: 12px 30px; border-radius: 25px; text-decoration: none; font-weight: bold; margin-top: 1rem; transition: background 0.3s; }
+        .download-btn { display: inline-block; background: #4CAF50; color: white; padding: 12px 30px; border-radius: 25px; text-decoration: none; font-weight: bold; margin: 0.5rem; transition: background 0.3s; }
         .download-btn:hover { background: #45a049; }
+        .download-btn.secondary { background: #2196F3; }
+        .download-btn.secondary:hover { background: #1976D2; }
         .info { background: rgba(255,255,255,0.1); border-radius: 15px; padding: 2rem; color: white; }
         .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 2rem; }
         .feature { background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 10px; }
+        .instructions { font-size: 0.9rem; margin-top: 1rem; opacity: 0.8; }
     </style>
 </head>
 <body>
@@ -33,22 +36,37 @@
             <div class="download-card">
                 <h3>🪟 Windows</h3>
                 <p>Windows 10/11 (64-bit)</p>
-                <a href="https://github.com/eelitedesire/SolarAutopilotApp/actions" class="download-btn">Download from Actions</a>
-                <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.7;">Click latest build → windows-latest-installer</p>
+                <a href="https://github.com/eelitedesire/SolarAutopilotApp/actions/runs/12734088893" class="download-btn">Download Latest Build</a>
+                <div class="instructions">
+                    1. Click link above<br>
+                    2. Scroll to "Artifacts"<br>
+                    3. Download "windows-latest-installer"<br>
+                    4. Extract and run the .exe file
+                </div>
             </div>
 
             <div class="download-card">
                 <h3>🍎 macOS</h3>
                 <p>macOS 10.12+ (Intel & Apple Silicon)</p>
-                <a href="https://github.com/eelitedesire/SolarAutopilotApp/raw/main/desktop/dist/CARBONOZ%20SolarAutopilot-1.0.0.dmg" class="download-btn">Download Intel .dmg</a>
-                <a href="https://github.com/eelitedesire/SolarAutopilotApp/raw/main/desktop/dist/CARBONOZ%20SolarAutopilot-1.0.0-arm64.dmg" class="download-btn" style="margin-top: 0.5rem;">Download Apple Silicon .dmg</a>
+                <a href="https://github.com/eelitedesire/SolarAutopilotApp/actions/runs/12734088893" class="download-btn">Download Latest Build</a>
+                <div class="instructions">
+                    1. Click link above<br>
+                    2. Scroll to "Artifacts"<br>
+                    3. Download "macos-latest-installer"<br>
+                    4. Extract and install the .dmg file
+                </div>
             </div>
 
             <div class="download-card">
                 <h3>🐧 Linux</h3>
                 <p>Ubuntu/Debian & AppImage</p>
-                <a href="https://github.com/eelitedesire/SolarAutopilotApp/actions" class="download-btn">Download from Actions</a>
-                <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.7;">Click latest build → ubuntu-latest-installer</p>
+                <a href="https://github.com/eelitedesire/SolarAutopilotApp/actions/runs/12734088893" class="download-btn">Download Latest Build</a>
+                <div class="instructions">
+                    1. Click link above<br>
+                    2. Scroll to "Artifacts"<br>
+                    3. Download "ubuntu-latest-installer"<br>
+                    4. Extract and run AppImage or install .deb
+                </div>
             </div>
         </div>
 
@@ -73,13 +91,17 @@
                 </div>
             </div>
             
-            <h2 style="margin-top: 2rem;">📋 How to Download</h2>
-            <ol style="margin-top: 1rem; padding-left: 2rem;">
-                <li>Click your platform's download button above</li>
-                <li>Go to the latest successful build</li>
-                <li>Download the installer artifact for your OS</li>
-                <li>Extract and run the installer</li>
-            </ol>
+            <h2 style="margin-top: 2rem;">📋 Available Installers</h2>
+            <ul style="margin-top: 1rem; padding-left: 2rem;">
+                <li><strong>Windows:</strong> ~133 MB installer (.exe)</li>
+                <li><strong>macOS:</strong> ~325 MB installer (.dmg)</li>
+                <li><strong>Linux:</strong> ~110 MB AppImage + .deb package</li>
+            </ul>
+
+            <p style="margin-top: 2rem; text-align: center;">
+                <a href="https://github.com/eelitedesire/SolarAutopilotApp" class="download-btn secondary">View Source Code</a>
+                <a href="https://github.com/eelitedesire/SolarAutopilotApp/actions" class="download-btn secondary">All Builds</a>
+            </p>
         </div>
     </div>
 </body>
