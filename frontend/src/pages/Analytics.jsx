@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement, Filler } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -8,7 +8,7 @@ import AdvancedLoadingOverlay from '../components/AdvancedLoadingOverlay';
 import { usePageLoading } from '../hooks/useLoading';
 import { useTheme } from '../hooks/useTheme';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement, Filler);
 
 // Helper functions for data processing
 const safeNumber = (value) => {

@@ -31,8 +31,28 @@ export default function EnergyDashboard() {
   })
   const [loading, setLoading] = useState(true)
   const [warnings, setWarnings] = useState([])
+  const [iframeKey, setIframeKey] = useState(0)
   const { isLoading: pageLoading } = usePageLoading(800, 1500)
   const { isDark } = useTheme()
+
+  // Function to update Grafana iframes based on dark mode
+  const updateGrafanaIframes = (isDarkMode) => {
+    setTimeout(() => {
+      const iframes = document.querySelectorAll('iframe')
+      iframes.forEach(iframe => {
+        let src = iframe.src
+        src = src.replace(/([?&]theme=)(light|dark)/, '')
+        const separator = src.includes('?') ? '&' : '?'
+        const newSrc = `${src}${separator}theme=${isDarkMode ? 'dark' : 'light'}&t=${Date.now()}`
+        iframe.src = newSrc
+      })
+    }, 200)
+  }
+
+  // Update iframes when theme changes
+  useEffect(() => {
+    updateGrafanaIframes(isDark)
+  }, [isDark])
 
   useEffect(() => {
     fetchSystemData()
@@ -150,36 +170,6 @@ export default function EnergyDashboard() {
 
       {/* Power Monitoring Cards with Grafana Integration */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Solar Power */}
-        <div className="card p-0 overflow-hidden">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center">
-              <Sun className="w-5 h-5 mr-2 text-yellow-500" />
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Solar Power</span>
-            </div>
-          </div>
-          <iframe
-            src={`/grafana/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=1&theme=${isDark ? 'dark' : 'light'}&kiosk=tv`}
-            className="w-full h-48 border-0"
-            title="Solar Power"
-          />
-        </div>
-
-        {/* Grid Power */}
-        <div className="card p-0 overflow-hidden">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center">
-              <Zap className="w-5 h-5 mr-2 text-purple-500" />
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Grid Power</span>
-            </div>
-          </div>
-          <iframe
-            src={`/grafana/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=2&theme=${isDark ? 'dark' : 'light'}&kiosk=tv`}
-            className="w-full h-48 border-0"
-            title="Grid Power"
-          />
-        </div>
-
         {/* Load Power */}
         <div className="card p-0 overflow-hidden">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
@@ -189,9 +179,25 @@ export default function EnergyDashboard() {
             </div>
           </div>
           <iframe
-            src={`/grafana/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=3&theme=${isDark ? 'dark' : 'light'}&kiosk=tv`}
+            src={`http://localhost:3001/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=1&theme=${isDark ? 'dark' : 'light'}&kiosk=tv`}
             className="w-full h-48 border-0"
             title="Load Power"
+          />
+        </div>
+
+        {/* Solar Power */}
+        <div className="card p-0 overflow-hidden">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center">
+              <Sun className="w-5 h-5 mr-2 text-yellow-500" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Solar Power</span>
+            </div>
+          </div>
+          <iframe
+            key={`solar-${iframeKey}`}
+            src={`http://localhost:3001/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=8&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
+            className="w-full h-48 border-0"
+            title="Solar Power"
           />
         </div>
 
@@ -204,9 +210,77 @@ export default function EnergyDashboard() {
             </div>
           </div>
           <iframe
-            src={`/grafana/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=4&theme=${isDark ? 'dark' : 'light'}&kiosk=tv`}
+            key={`battery-${iframeKey}`}
+            src={`http://localhost:3001/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=4&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
             className="w-full h-48 border-0"
             title="Battery Power"
+          />
+        </div>
+
+        {/* Grid Power */}
+        <div className="card p-0 overflow-hidden">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center">
+              <Zap className="w-5 h-5 mr-2 text-purple-500" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Grid Power</span>
+            </div>
+          </div>
+          <iframe
+            key={`grid-${iframeKey}`}
+            src={`http://localhost:3001/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=7&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
+            className="w-full h-48 border-0"
+            title="Grid Power"
+          />
+        </div>
+      </div>
+
+      {/* Additional Monitoring Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Battery SOC */}
+        <div className="card p-0 overflow-hidden">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center">
+              <Zap className="w-5 h-5 mr-2 text-blue-500" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Battery SOC</span>
+            </div>
+          </div>
+          <iframe
+            key={`soc-${iframeKey}`}
+            src={`http://localhost:3001/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=9&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
+            className="w-full h-48 border-0"
+            title="Battery SOC"
+          />
+        </div>
+
+        {/* Battery Voltage */}
+        <div className="card p-0 overflow-hidden">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center">
+              <Zap className="w-5 h-5 mr-2 text-orange-500" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Battery Voltage</span>
+            </div>
+          </div>
+          <iframe
+            key={`batt-volt-${iframeKey}`}
+            src={`http://localhost:3001/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=10&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
+            className="w-full h-48 border-0"
+            title="Battery Voltage"
+          />
+        </div>
+
+        {/* Grid Voltage */}
+        <div className="card p-0 overflow-hidden">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center">
+              <Zap className="w-5 h-5 mr-2 text-red-500" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Grid Voltage</span>
+            </div>
+          </div>
+          <iframe
+            key={`grid-volt-${iframeKey}`}
+            src={`http://localhost:3001/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=2&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
+            className="w-full h-48 border-0"
+            title="Grid Voltage"
           />
         </div>
       </div>

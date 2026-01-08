@@ -793,6 +793,18 @@ class AIChargingEngine {
     return { success: true, message: 'AI Charging Engine stopped' };
   }
 
+  // Graceful shutdown without sending stop commands
+  gracefulShutdown() {
+    this.enabled = false;
+    if (this.evaluationInterval) {
+      clearInterval(this.evaluationInterval);
+      this.evaluationInterval = null;
+    }
+    
+    console.log('ℹ️ AI Charging Engine gracefully shutdown (no commands sent)');
+    return { success: true, message: 'AI Charging Engine gracefully shutdown' };
+  }
+
   stopBatteryChargingFromGrid() {
     if (!this.mqttClient) {
       console.log('⚠️ MQTT client not available, cannot stop grid charging');

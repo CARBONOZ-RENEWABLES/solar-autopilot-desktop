@@ -11,7 +11,7 @@ const axios = require('axios')
 const { backOff } = require('exponential-backoff')
 const socketPort = 8000
 const app = express()
-const port = process.env.PORT || 6789
+const port = process.env.PORT || 3000
 const { http } = require('follow-redirects')
 const cors = require('cors')
 const helmet = require('helmet')
@@ -135,6 +135,8 @@ const grafanaProxy = createProxyMiddleware({
   onProxyRes: (proxyRes, req, res) => {
     // Allow iframe embedding
     delete proxyRes.headers['x-frame-options'];
+    proxyRes.headers['X-Frame-Options'] = 'ALLOWALL';
+    proxyRes.headers['Content-Security-Policy'] = "frame-ancestors 'self' *";
   }
 });
 // Apply Grafana proxy to all necessary routes
@@ -265,11 +267,9 @@ const API_REQUEST_INTERVAL = 500; // 500ms between API requests for better respo
 
 // InfluxDB configuration
 const influxConfig = {
-  host: '10.241.110.59',
-  port: 8086,
-  database: 'home_assistant',
-  username: 'admin',
-  password: 'adminpassword',
+  host: process.env.INFLUXDB_HOST || 'localhost',
+  port: process.env.INFLUXDB_PORT || 8087,
+  database: process.env.INFLUXDB_DATABASE || 'solarautopilot',
   protocol: 'http',
   timeout: 10000,
 }
@@ -2301,6 +2301,19 @@ app.get('/notifications', (req, res) => {
     }
   })
 
+  // Messages API endpoint
+  app.get('/api/messages', (req, res) => {
+    try {
+      const category = req.query.category || 'all';
+      const filteredMessages = filterMessagesByCategory(category);
+      
+      res.json(filteredMessages);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+  });
+
   // Helper function to aggregate daily data to monthly
   function aggregateToMonthly(dailyData) {
     const monthlyData = {};
@@ -3764,7 +3777,11 @@ app.get('/notifications', (req, res) => {
     }
   });
   
-  // Add notification routes
+  // Add health check route
+const healthRoutes = require('./routes/health');
+app.use('/', healthRoutes);
+
+// Add notification routes
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/notifications', notificationRoutes);
   
@@ -6350,10 +6367,10 @@ function GracefulShutdown() {
   
   // Stop AI Charging Engine first
   if (aiChargingEngine) {
-    console.log('🤖 Stopping AI Charging Engine');
+    console.log('🤖 Gracefully stopping AI Charging Engine');
     try {
-      aiChargingEngine.stop();
-      console.log('✅ AI Charging Engine stopped');
+      aiChargingEngine.gracefulShutdown();
+      console.log('✅ AI Charging Engine gracefully stopped');
     } catch (error) {
       console.error('❌ Error stopping AI engine:', error.message);
     }

@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  influxdb:
+    image: influxdb:1.8
+    container_name: solarautopilot-influxdb
+    restart: unless-stopped
+    ports:
+      - "8087:8086"
+    environment:
+      - INFLUXDB_DB=solarautopilot
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=solarautopilot123
+      - INFLUXDB_USER=solaruser
+      - INFLUXDB_USER_PASSWORD=solarpass123
+    volumes:
+      - influxdb_data:/var/lib/influxdb
+      - ./influxdb/influxdb.conf:/etc/influxdb/influxdb.conf:ro
+    networks:
+      - solarautopilot
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: solarautopilot-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=solarautopilot123
+      - GF_PLUGINS_PREINSTALL=grafana-clock-panel
+    user: "0"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini
+    depends_on:
+      - influxdb
+    networks:
+      - solarautopilot
+
+  redis:
+    image: redis:7-alpine
+    container_name: solarautopilot-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - solarautopilot
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: solarautopilot-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_DATABASE=solarautopilot
+      - INFLUXDB_USERNAME=solaruser
+      - INFLUXDB_PASSWORD=solarpass123
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - influxdb
+      - redis
+    networks:
+      - solarautopilot
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: solarautopilot-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - solarautopilot
+
+  nginx:
+    image: nginx:alpine
+    container_name: solarautopilot-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - backend
+      - grafana
+    networks:
+      - solarautopilot
+
+volumes:
+  influxdb_data:
+  grafana_data:
+  redis_data:
+
+networks:
+  solarautopilot:
+    driver: bridge

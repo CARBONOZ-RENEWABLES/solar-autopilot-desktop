@@ -3,11 +3,10 @@ datasources:
   - name: InfluxDB
     type: influxdb
     access: proxy
-    url: http://localhost:8086
-    database: 'home_assistant'
-    user: 'admin'
-    secureJsonData:
-      password: 'adminpassword'
+    url: http://influxdb:8086
+    database: 'solarautopilot'
+    user: 'solaruser'
+    password: 'solarpass123'
     jsonData:
       httpMode: GET
       timeInterval: "1s" 

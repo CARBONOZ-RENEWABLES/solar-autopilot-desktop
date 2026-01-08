@@ -10,17 +10,32 @@ export default function Chart() {
   const { isLoading: pageLoading } = usePageLoading(600, 1200)
 
   useEffect(() => {
-    // Hide loading after iframe loads
     const timer = setTimeout(() => setLoading(false), 2000)
     return () => clearTimeout(timer)
   }, [])
 
+  // Function to update Grafana iframes based on dark mode
+  const updateGrafanaIframes = (isDarkMode) => {
+    setTimeout(() => {
+      const iframes = document.querySelectorAll('iframe')
+      iframes.forEach(iframe => {
+        let src = iframe.src
+        src = src.replace(/([?&]theme=)(light|dark)/, '')
+        const separator = src.includes('?') ? '&' : '?'
+        const newSrc = `${src}${separator}theme=${isDarkMode ? 'dark' : 'light'}&t=${Date.now()}`
+        iframe.src = newSrc
+      })
+    }, 200)
+  }
+
+  // Update iframes when theme changes
+  useEffect(() => {
+    updateGrafanaIframes(isDark)
+  }, [isDark])
+
   const refreshDashboard = () => {
     setLoading(true)
-    const iframe = document.getElementById('grafanaDashboard')
-    if (iframe) {
-      iframe.src = iframe.src // Force reload
-    }
+    updateGrafanaIframes(isDark)
     setTimeout(() => setLoading(false), 1500)
   }
 
@@ -37,9 +52,9 @@ export default function Chart() {
             <BarChart3 className="w-6 h-6 text-black" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Charts</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Solar Dashboard</h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Real-time monitoring and historical data visualization
+              Real-time monitoring and comprehensive analytics
             </p>
           </div>
         </div>
@@ -54,10 +69,10 @@ export default function Chart() {
         </button>
       </div>
 
-      {/* Grafana Dashboard */}
-      <div className="card p-0 overflow-hidden">
+      {/* Main Grafana Dashboard */}
+      <div className="relative w-full" style={{ height: 'calc(100vh - 200px)', minHeight: '700px' }}>
         {loading && (
-          <div className="absolute inset-0 bg-white dark:bg-gray-800 bg-opacity-75 flex items-center justify-center z-10">
+          <div className="absolute inset-0 bg-white dark:bg-gray-800 bg-opacity-75 flex items-center justify-center z-10 rounded-xl">
             <div className="text-center">
               <div className="loading-spinner mb-4"></div>
               <p className="text-gray-600 dark:text-gray-400">Loading dashboard...</p>
@@ -65,38 +80,35 @@ export default function Chart() {
           </div>
         )}
         
-        <div className="relative" style={{ height: '80vh', minHeight: '600px' }}>
-          <iframe
-            id="grafanaDashboard"
-            src={`/grafana/d/solar_power_dashboard/solar-power-dashboard?orgId=1&kiosk=1&refresh=5s&theme=${isDark ? 'dark' : 'light'}`}
-            className="w-full h-full border-0"
-            title="Solar Dashboard"
-            onLoad={() => setLoading(false)}
-            onError={() => setLoading(false)}
-          />
-        </div>
+        <iframe
+          src={`http://localhost:3001/d/solar_power_dashboard/solar-power-dashboard?orgId=1&kiosk=1&refresh=5s&theme=${isDark ? 'dark' : 'light'}`}
+          className="w-full h-full border-0 rounded-xl shadow-lg"
+          title="Solar Power Dashboard"
+          onLoad={() => setLoading(false)}
+          onError={() => setLoading(false)}
+        />
       </div>
 
-      {/* Dashboard Info */}
+      {/* Dashboard Features */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card">
-          <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Real-time Data</h4>
+          <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Live Monitoring</h4>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Live monitoring of solar production, battery status, and energy consumption with 1-second refresh rate.
-          </p>
-        </div>
-        
-        <div className="card">
-          <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Historical Analysis</h4>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Comprehensive historical data analysis with customizable time ranges and detailed performance metrics.
+            Real-time data with automatic 5-second refresh for instant system insights.
           </p>
         </div>
         
         <div className="card">
           <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Interactive Charts</h4>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Interactive Grafana dashboards with zoom, pan, and detailed tooltips for in-depth data exploration.
+            Zoom, pan, and explore detailed metrics with professional Grafana visualizations.
+          </p>
+        </div>
+        
+        <div className="card">
+          <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Adaptive Theme</h4>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Dashboard automatically adapts to your preferred light or dark theme.
           </p>
         </div>
       </div>

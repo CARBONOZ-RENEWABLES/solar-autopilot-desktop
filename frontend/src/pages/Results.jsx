@@ -20,7 +20,8 @@ import {
   Title,
   Tooltip,
   Legend,
-  ArcElement
+  ArcElement,
+  Filler
 } from 'chart.js'
 import { Line, Bar, Doughnut } from 'react-chartjs-2'
 import clsx from 'clsx'
@@ -37,7 +38,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  ArcElement
+  ArcElement,
+  Filler
 )
 
 export default function Results() {

@@ -11,5 +11,5 @@
   "tibber_enabled": false,
   "tibber_api_key": "",
   "tibber_country": "DE",
-  "timezone": "Europe/Berlin"
+  "timezone": "UTC"
 }
