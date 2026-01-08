@@ -252,7 +252,7 @@ export default function Notifications() {
             <Bell className="w-6 h-6 text-black" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Smart Notifications</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Notifications</h1>
             <p className="text-gray-600 dark:text-gray-400">
               AI-powered notification system with intelligent filtering
             </p>

@@ -380,7 +380,7 @@ const Analytics = () => {
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
       <div className="px-6 py-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-        <p className="text-sm text-gray-600 mt-1">{data.length} records (newest first)</p>
+        <p className="text-sm text-gray-600 mt-1">{data.length}</p>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
@@ -446,7 +446,7 @@ const Analytics = () => {
                 <BarChart3 className="w-6 h-6 text-black" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Solar Analytics Dashboard</h1>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Analytics</h1>
                 <p className="text-gray-600 dark:text-gray-400">Energy analysis with proper counter reset handling</p>
               </div>
             </div>
