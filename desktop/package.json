@@ -27,17 +27,8 @@
     "files": [
       "main.js",
       "preload.js",
-      "../frontend/dist/**/*",
-      "../*.js",
-      "../services/**/*",
-      "../routes/**/*",
-      "../utils/**/*",
-      "../ai/**/*",
-      "../data/**/*",
-      "../node_modules/**/*",
-      "!../node_modules/.cache",
-      "!../logs",
-      "!../frontend/node_modules"
+      "assets/**/*",
+      "../frontend/dist/**/*"
     ],
     "mac": {
       "category": "public.app-category.utilities",

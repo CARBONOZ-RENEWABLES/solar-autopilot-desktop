@@ -29,7 +29,28 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../frontend/dist/index.html'));
+    // Try multiple possible paths for the frontend
+    const frontendPaths = [
+      path.join(__dirname, '../frontend/dist/index.html'),
+      path.join(__dirname, 'frontend/dist/index.html'),
+      path.join(__dirname, 'dist/index.html')
+    ];
+    
+    let loaded = false;
+    for (const frontendPath of frontendPaths) {
+      try {
+        if (require('fs').existsSync(frontendPath)) {
+          mainWindow.loadFile(frontendPath);
+          loaded = true;
+          break;
+        }
+      } catch (e) {}
+    }
+    
+    if (!loaded) {
+      // Fallback to a simple HTML page
+      mainWindow.loadURL('data:text/html,<html><body><h1>CARBONOZ SolarAutopilot</h1><p>Frontend loading...</p><script>setTimeout(() => location.reload(), 2000)</script></body></html>');
+    }
   }
 
   mainWindow.once('ready-to-show', () => {
