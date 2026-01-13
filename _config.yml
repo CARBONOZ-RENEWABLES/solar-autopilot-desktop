@@ -1,0 +1,7 @@
+exclude:
+  - node_modules
+  - frontend/node_modules
+  - desktop/node_modules
+  - "*.log"
+  - .env
+  - dist

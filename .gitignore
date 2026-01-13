@@ -1,14 +1,6 @@
 node_modules/
-dist/
-build/
+frontend/node_modules/
+desktop/node_modules/
 *.log
 .env
-.DS_Store
-logs/
-desktop/dist/
-frontend/dist/
-*.dmg
-*.exe
-*.AppImage
-*.deb
-*.rpm
+dist/
