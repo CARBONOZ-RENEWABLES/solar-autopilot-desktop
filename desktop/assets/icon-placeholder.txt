@@ -1,0 +1,2 @@
+# Icon placeholder - replace with actual icon
+# This file prevents build errors when icon files are missing
