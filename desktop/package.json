@@ -28,7 +28,32 @@
       "main.js",
       "preload.js",
       "assets/**/*",
-      "../frontend/dist/**/*"
+      "../frontend/dist/**/*",
+      "../server.js",
+      "../package.json",
+      "../node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../server.js",
+        "to": "server.js"
+      },
+      {
+        "from": "../services",
+        "to": "services"
+      },
+      {
+        "from": "../routes",
+        "to": "routes"
+      },
+      {
+        "from": "../ai",
+        "to": "ai"
+      },
+      {
+        "from": "../utils",
+        "to": "utils"
+      }
     ],
     "mac": {
       "category": "public.app-category.utilities",
