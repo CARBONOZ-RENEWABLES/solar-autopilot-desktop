@@ -69,9 +69,9 @@ jobs:
     
     - name: Verify build
       run: |
-        if not exist "frontend\dist\index.html" exit 1
-        if not exist "server.js" exit 1
-        echo Build verification passed
+        if (-not (Test-Path "frontend\dist\index.html")) { exit 1 }
+        if (-not (Test-Path "server.js")) { exit 1 }
+        Write-Host "Build verification passed"
     
     - name: Install desktop dependencies
       run: cd desktop && npm install --force
