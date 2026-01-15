@@ -28,6 +28,12 @@ jobs:
     - name: Copy frontend build
       run: cp -r frontend/dist desktop/frontend-dist
     
+    - name: Verify build
+      run: |
+        test -f frontend/dist/index.html || exit 1
+        test -f server.js || exit 1
+        echo "✅ Build verification passed"
+    
     - name: Install desktop dependencies
       run: cd desktop && npm install --force
     
@@ -60,6 +66,12 @@ jobs:
     
     - name: Copy frontend build
       run: xcopy /E /I frontend\dist desktop\frontend-dist
+    
+    - name: Verify build
+      run: |
+        if not exist "frontend\dist\index.html" exit 1
+        if not exist "server.js" exit 1
+        echo Build verification passed
     
     - name: Install desktop dependencies
       run: cd desktop && npm install --force
@@ -96,6 +108,12 @@ jobs:
     - name: Copy frontend build
       run: cp -r frontend/dist desktop/frontend-dist
     
+    - name: Verify build
+      run: |
+        test -f frontend/dist/index.html || exit 1
+        test -f server.js || exit 1
+        echo "✅ Build verification passed"
+    
     - name: Install desktop dependencies
       run: cd desktop && npm install --force
     
@@ -128,6 +146,12 @@ jobs:
     
     - name: Copy frontend build
       run: cp -r frontend/dist desktop/frontend-dist
+    
+    - name: Verify build
+      run: |
+        test -f frontend/dist/index.html || exit 1
+        test -f server.js || exit 1
+        echo "✅ Build verification passed"
     
     - name: Install desktop dependencies
       run: cd desktop && npm install --force
