@@ -1,13 +1,26 @@
 const { app, BrowserWindow, Menu, shell } = require('electron');
 const path = require('path');
-const { spawn, exec } = require('child_process');
+const { spawn } = require('child_process');
 const fs = require('fs');
 
 let mainWindow;
 let backendProcess;
 
-// Get project root (parent directory of desktop folder)
-const PROJECT_ROOT = path.join(__dirname, '..');
+// Determine if app is packaged
+const isPackaged = app.isPackaged;
+
+// Get correct paths based on whether app is packaged or not
+const getProjectRoot = () => {
+  if (isPackaged) {
+    // In packaged app, resources are in app.asar or extraResources
+    return process.resourcesPath;
+  } else {
+    // In development, parent directory of desktop folder
+    return path.join(__dirname, '..');
+  }
+};
+
+const PROJECT_ROOT = getProjectRoot();
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -269,8 +282,21 @@ function checkPort(port) {
 }
 
 function checkFrontendBuild() {
-  const distPath = path.join(PROJECT_ROOT, 'frontend', 'dist', 'index.html');
-  return fs.existsSync(distPath);
+  let distPath;
+  
+  if (isPackaged) {
+    // In packaged app, check in resources
+    distPath = path.join(PROJECT_ROOT, 'frontend', 'dist', 'index.html');
+  } else {
+    // In development
+    distPath = path.join(PROJECT_ROOT, 'frontend', 'dist', 'index.html');
+  }
+  
+  console.log('Checking frontend build at:', distPath);
+  const exists = fs.existsSync(distPath);
+  console.log('Frontend build exists:', exists);
+  
+  return exists;
 }
 
 async function startBackend() {
@@ -278,43 +304,133 @@ async function startBackend() {
   updateLoadingProgress('Starting backend server...', 50);
   
   return new Promise((resolve) => {
-    const serverPath = path.join(PROJECT_ROOT, 'server.js');
+    let serverPath;
+    let workingDir;
     
-    // Set NODE_ENV to production so it serves static files
-    const env = { ...process.env, NODE_ENV: 'production' };
+    if (isPackaged) {
+      serverPath = path.join(PROJECT_ROOT, 'server.js');
+      workingDir = PROJECT_ROOT;
+    } else {
+      serverPath = path.join(PROJECT_ROOT, 'server.js');
+      workingDir = PROJECT_ROOT;
+    }
     
-    backendProcess = spawn('node', [serverPath], {
-      cwd: PROJECT_ROOT,
-      stdio: 'pipe',
-      env: env
+    console.log('Server path:', serverPath);
+    console.log('Working dir:', workingDir);
+    console.log('Is packaged:', isPackaged);
+    console.log('Platform:', process.platform);
+    console.log('Resources path:', PROJECT_ROOT);
+    
+    // Verify server.js exists
+    if (!fs.existsSync(serverPath)) {
+      console.error('server.js not found at:', serverPath);
+      updateLoadingProgress('❌ server.js not found', 70);
+      resolve(false);
+      return;
+    }
+    
+    // Set environment variables for the backend
+    const env = { 
+      ...process.env, 
+      NODE_ENV: 'production',
+      RESOURCES_PATH: PROJECT_ROOT,
+      USER_DATA_PATH: app.getPath('userData'),
+      PORT: '3000',
+      NODE_PATH: path.join(PROJECT_ROOT, 'node_modules')
+    };
+    
+    console.log('Starting with env:', {
+      NODE_ENV: env.NODE_ENV,
+      RESOURCES_PATH: env.RESOURCES_PATH,
+      PORT: env.PORT,
+      NODE_PATH: env.NODE_PATH
     });
     
-    backendProcess.stdout.on('data', (data) => {
-      console.log(`Backend: ${data}`);
-    });
-    
-    backendProcess.stderr.on('data', (data) => {
-      console.error(`Backend Error: ${data}`);
-    });
-    
-    // Wait for backend to be ready
-    let attempts = 0;
-    const checkInterval = setInterval(async () => {
-      attempts++;
-      const isRunning = await checkPort(3000);
+    try {
+      const { fork } = require('child_process');
       
-      if (isRunning) {
-        clearInterval(checkInterval);
-        console.log('✅ Backend started successfully');
-        updateLoadingProgress('✅ Backend started and serving React app', 70);
-        resolve(true);
-      } else if (attempts > 30) {
-        clearInterval(checkInterval);
-        console.error('❌ Backend failed to start');
-        updateLoadingProgress('❌ Backend failed to start', 70);
+      // Use fork with proper Node.js path
+      backendProcess = fork(serverPath, [], {
+        cwd: workingDir,
+        env: env,
+        silent: true,
+        execPath: process.execPath // Use Electron's Node.js
+      });
+      
+      let startupOutput = '';
+      
+      backendProcess.stdout.on('data', (data) => {
+        const output = data.toString();
+        startupOutput += output;
+        console.log(`Backend: ${output}`);
+        
+        if (output.includes('running on port') || output.includes('Server running')) {
+          updateLoadingProgress('✅ Backend server started', 65);
+        }
+      });
+      
+      backendProcess.stderr.on('data', (data) => {
+        const error = data.toString();
+        console.error(`Backend Error: ${error}`);
+        
+        if (error.includes('EADDRINUSE')) {
+          updateLoadingProgress('⚠️ Port 3000 in use, trying to connect...', 60);
+        } else if (error.includes('Cannot find module')) {
+          updateLoadingProgress('❌ Missing dependencies', 60);
+          console.error('Missing module error - check node_modules in:', PROJECT_ROOT);
+        }
+      });
+      
+      backendProcess.on('error', (error) => {
+        console.error('Failed to start backend:', error);
+        updateLoadingProgress('❌ Failed to start backend: ' + error.message, 70);
+        showServiceError('Backend error: ' + error.message + '\n\nStack: ' + error.stack);
         resolve(false);
-      }
-    }, 1000);
+      });
+      
+      backendProcess.on('exit', (code, signal) => {
+        console.log(`Backend process exited with code ${code} and signal ${signal}`);
+        if (code !== 0 && code !== null) {
+          console.error('Backend startup output:', startupOutput);
+          showServiceError('Backend crashed with exit code ' + code + '\n\nOutput:\n' + startupOutput);
+        }
+      });
+      
+      // Wait for backend to be ready
+      let attempts = 0;
+      const maxAttempts = 60;
+      
+      const checkInterval = setInterval(async () => {
+        attempts++;
+        const isRunning = await checkPort(3000);
+        
+        if (isRunning) {
+          clearInterval(checkInterval);
+          console.log('✅ Backend started successfully');
+          updateLoadingProgress('✅ Backend started and serving React app', 70);
+          resolve(true);
+        } else if (attempts > maxAttempts) {
+          clearInterval(checkInterval);
+          console.error('❌ Backend failed to start after', maxAttempts, 'attempts');
+          console.error('Last backend output:', startupOutput);
+          updateLoadingProgress('❌ Backend startup timeout', 70);
+          
+          if (backendProcess && !backendProcess.killed) {
+            backendProcess.kill();
+          }
+          
+          resolve(false);
+        } else {
+          if (attempts % 5 === 0) {
+            updateLoadingProgress(`Starting backend... (${attempts}/${maxAttempts})`, 50 + (attempts / maxAttempts * 20));
+          }
+        }
+      }, 1000);
+    } catch (error) {
+      console.error('Error spawning backend process:', error);
+      updateLoadingProgress('❌ Error starting backend: ' + error.message, 70);
+      resolve(false);
+    }
   });
 }
 
@@ -333,23 +449,30 @@ async function checkExistingServices() {
 async function initializeServices() {
   try {
     console.log('🚀 Initializing CARBONOZ SolarAutopilot services...');
+    console.log('Running mode:', isPackaged ? 'PACKAGED' : 'DEVELOPMENT');
+    console.log('Project root:', PROJECT_ROOT);
+    
     updateLoadingProgress('Checking services...', 5);
     
     const servicesRunning = await checkExistingServices();
     
     // Check if frontend is built
     if (!servicesRunning.frontendBuilt) {
-      showServiceError('Frontend not built. Please download the pre-built installer from:\n\nhttps://github.com/eelitedesire/SolarAutopilotApp/actions\n\nOr build manually:\ncd frontend && npm install && npm run build');
+      const errorMsg = isPackaged 
+        ? 'Frontend build not found in packaged app. This is a packaging error.'
+        : 'Frontend not built. Please run: cd frontend && npm install && npm run build';
+      
+      showServiceError(errorMsg);
       return;
     }
-    console.log('✅ Frontend already built');
+    console.log('✅ Frontend build found');
     updateLoadingProgress('✅ Frontend ready', 40);
     
     // Start backend if not running
     if (!servicesRunning.backend) {
       const started = await startBackend();
       if (!started) {
-        showServiceError('Backend failed to start. Check if server.js exists and all dependencies are installed.');
+        showServiceError('Backend failed to start. Check console logs for details.');
         return;
       }
     } else {
@@ -412,6 +535,13 @@ function showServiceError(message) {
             border-radius: 5px;
             text-align: left;
             overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+          }
+          .debug-info {
+            margin-top: 20px;
+            font-size: 12px;
+            opacity: 0.8;
           }
         </style>
       </head>
@@ -420,13 +550,13 @@ function showServiceError(message) {
           <div class="error-icon">⚠️</div>
           <h1>Service Error</h1>
           <pre>${message}</pre>
-          <p>Please check:</p>
-          <ul style="text-align: left; display: inline-block;">
-            <li>Frontend is built (run 'npm run build' in frontend directory)</li>
-            <li>Backend dependencies are installed</li>
-            <li>server.js exists in parent directory</li>
-          </ul>
+          <div class="debug-info">
+            <p>Running mode: ${isPackaged ? 'PACKAGED' : 'DEVELOPMENT'}</p>
+            <p>Project root: ${PROJECT_ROOT}</p>
+            <p>Platform: ${process.platform}</p>
+          </div>
           <button class="btn" onclick="location.reload()">Retry</button>
+          <button class="btn" onclick="require('electron').shell.openExternal('https://github.com/yourusername/solarautopilot/issues')">Report Issue</button>
         </div>
       </body>
       </html>
@@ -437,6 +567,23 @@ function showServiceError(message) {
 
 // App event handlers
 app.whenReady().then(() => {
+  // Prevent multiple windows
+  const gotTheLock = app.requestSingleInstanceLock();
+  
+  if (!gotTheLock) {
+    console.log('Another instance is already running');
+    app.quit();
+    return;
+  }
+  
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, focus our window
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+  
   createWindow();
   setTimeout(initializeServices, 1000);
 
@@ -503,7 +650,6 @@ const template = [
   {
     label: 'Services',
     submenu: [
-
       {
         label: 'Restart Backend',
         click: async () => {

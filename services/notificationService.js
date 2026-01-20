@@ -3,8 +3,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const telegramService = require('./telegramService');
-const ruleEvaluationService = require('./ruleEvaluationService');
+const APP_ROOT = process.env.RESOURCES_PATH || __dirname.replace(/services$/, '');
+const telegramService = require(path.join(APP_ROOT, 'services', 'telegramService'));
+const ruleEvaluationService = require(path.join(APP_ROOT, 'services', 'ruleEvaluationService'));
 
 class NotificationService {
     constructor() {
@@ -634,7 +635,8 @@ class NotificationService {
     // Conditional rules management
     loadConditionRules() {
         try {
-            const rulesPath = path.join(__dirname, '../data/condition-rules.json');
+            const DATA_ROOT = process.env.USER_DATA_PATH || path.join(__dirname, '..');
+            const rulesPath = path.join(DATA_ROOT, 'data', 'condition-rules.json');
             if (fs.existsSync(rulesPath)) {
                 const rules = JSON.parse(fs.readFileSync(rulesPath, 'utf8'));
                 rules.forEach(rule => {
@@ -648,7 +650,8 @@ class NotificationService {
 
     saveConditionRules() {
         try {
-            const rulesPath = path.join(__dirname, '../data/condition-rules.json');
+            const DATA_ROOT = process.env.USER_DATA_PATH || path.join(__dirname, '..');
+            const rulesPath = path.join(DATA_ROOT, 'data', 'condition-rules.json');
             const dataDir = path.dirname(rulesPath);
             
             if (!fs.existsSync(dataDir)) {

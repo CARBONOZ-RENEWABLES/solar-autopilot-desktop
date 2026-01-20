@@ -2,9 +2,11 @@
 // Based on: "Do dynamic electricity tariffs change the gains of residential PV-battery systems?"
 // Key findings: 12.7% improvement with dynamic tariffs, 8¢/kWh optimal threshold
 
-const tibberService = require('./tibberService');
-const influxAIService = require('./influxAIService');
-const AIChargingSystem = require('../ai/index');
+const path = require('path');
+const APP_ROOT = process.env.RESOURCES_PATH || __dirname.replace(/services$/, '');
+const tibberService = require(path.join(APP_ROOT, 'services', 'tibberService'));
+const influxAIService = require(path.join(APP_ROOT, 'services', 'influxAIService'));
+const AIChargingSystem = require(path.join(APP_ROOT, 'ai', 'index'));
 // Enhanced notification service will be available globally
 
 class AIChargingEngine {

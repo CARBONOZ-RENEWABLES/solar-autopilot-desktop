@@ -1,19 +1,13 @@
-const { contextBridge, ipcRenderer } = require('electron');
+// Preload script for Electron security
+const { contextBridge } = require('electron');
 
+// Expose protected methods that allow the renderer process to use
+// specific features without exposing the whole of Node.js
 contextBridge.exposeInMainWorld('electronAPI', {
-  // App info
-  getVersion: () => ipcRenderer.invoke('get-version'),
-  
-  // System info
-  getPlatform: () => process.platform,
-  
-  // File operations (if needed)
-  openFile: () => ipcRenderer.invoke('open-file'),
-  saveFile: (data) => ipcRenderer.invoke('save-file', data),
-  
-  // Notifications
-  showNotification: (title, body) => ipcRenderer.invoke('show-notification', title, body)
+  platform: process.platform,
+  versions: {
+    node: process.versions.node,
+    chrome: process.versions.chrome,
+    electron: process.versions.electron
+  }
 });
-
-// Expose a minimal API for the React app
-window.isElectron = true;

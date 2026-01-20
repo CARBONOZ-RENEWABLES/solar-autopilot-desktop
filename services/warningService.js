@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 // Configuration file path
-const WARNINGS_CONFIG_FILE = path.join(__dirname, '..', 'data', 'warnings_config.json');
+const DATA_ROOT = process.env.USER_DATA_PATH || path.join(__dirname, '..');
+const WARNINGS_CONFIG_FILE = path.join(DATA_ROOT, 'data', 'warnings_config.json');
 
 // No default warning types - users create their own
 const availableWarningTypes = [];

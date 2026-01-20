@@ -3,6 +3,7 @@ const bodyParser = require('body-parser')
 const mqtt = require('mqtt')
 const fs = require('fs')
 const path = require('path')
+const { fork } = require('child_process')
 const Influx = require('influx')
 const moment = require('moment-timezone')
 const WebSocket = require('ws')
@@ -21,15 +22,49 @@ const cron = require('node-cron')
 const session = require('express-session');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const { startOfDay } = require('date-fns')
-const { AuthenticateUser } = require('./utils/mongoService')
-const telegramService = require('./services/telegramService');
-const warningService = require('./services/warningService');
-const notificationRoutes = require('./routes/notificationRoutes');
-const notificationService = require('./services/notificationService');
-const ruleEvaluationService = require('./services/ruleEvaluationService');
-const tibberService = require('./services/tibberService');
-const aiChargingEngine = require('./services/aiChargingEngine');
-const memoryMonitor = require('./utils/memoryMonitor');
+
+// Handle packaged Electron app paths
+const isElectronPackaged = process.env.RESOURCES_PATH && process.env.NODE_ENV === 'production';
+const APP_ROOT = isElectronPackaged ? process.env.RESOURCES_PATH : __dirname;
+const DATA_ROOT = isElectronPackaged && process.env.USER_DATA_PATH 
+  ? process.env.USER_DATA_PATH 
+  : __dirname;
+
+if (isElectronPackaged) {
+  console.log('🎁 Running in packaged Electron app');
+  console.log('📁 Resources path (read-only):', process.env.RESOURCES_PATH);
+  console.log('📁 User data path (writable):', DATA_ROOT);
+  console.log('📂 App root:', APP_ROOT);
+  
+  // Set module paths for packaged app
+  if (process.env.NODE_PATH) {
+    module.paths.unshift(process.env.NODE_PATH);
+  }
+  module.paths.unshift(path.join(APP_ROOT, 'node_modules'));
+  
+  console.log('📦 Module paths:', module.paths.slice(0, 3));
+}
+
+// Load services after APP_ROOT is defined - with error handling
+let AuthenticateUser, telegramService, warningService, notificationRoutes, 
+    notificationService, ruleEvaluationService, tibberService, aiChargingEngine, memoryMonitor;
+
+try {
+  ({ AuthenticateUser } = require(path.join(APP_ROOT, 'utils', 'mongoService')));
+  telegramService = require(path.join(APP_ROOT, 'services', 'telegramService'));
+  warningService = require(path.join(APP_ROOT, 'services', 'warningService'));
+  notificationRoutes = require(path.join(APP_ROOT, 'routes', 'notificationRoutes'));
+  notificationService = require(path.join(APP_ROOT, 'services', 'notificationService'));
+  ruleEvaluationService = require(path.join(APP_ROOT, 'services', 'ruleEvaluationService'));
+  tibberService = require(path.join(APP_ROOT, 'services', 'tibberService'));
+  aiChargingEngine = require(path.join(APP_ROOT, 'services', 'aiChargingEngine'));
+  memoryMonitor = require(path.join(APP_ROOT, 'utils', 'memoryMonitor'));
+  console.log('✅ All services loaded successfully');
+} catch (error) {
+  console.error('❌ Error loading services:', error.message);
+  console.error('Stack:', error.stack);
+  process.exit(1);
+}
 
 // Start memory monitoring
 memoryMonitor.start();
@@ -76,13 +111,22 @@ app.use(express.urlencoded({ extended: true }))
 
 // Serve React app in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'frontend/dist')))
+  const frontendPath = path.join(APP_ROOT, 'frontend', 'dist');
+  
+  console.log('🎨 Serving frontend from:', frontendPath);
+  
+  if (fs.existsSync(frontendPath)) {
+    app.use(express.static(frontendPath));
+    console.log('✅ Frontend static files ready');
+  } else {
+    console.error('❌ Frontend build not found at:', frontendPath);
+  }
 }
 
 // Add EJS template engine support
-app.use(express.static(path.join(__dirname, 'public')))
+app.use(express.static(path.join(APP_ROOT, 'public')))
 app.set('view engine', 'ejs')
-app.set('views', path.join(__dirname, 'views'))
+app.set('views', path.join(APP_ROOT, 'views'))
 
 app.use((req, res, next) => {
   if (req.path.includes('/hassio_ingress/')) {
@@ -148,9 +192,47 @@ app.use('/hassio_ingress/:token/grafana', grafanaProxy);
 // Read configuration from Home Assistant add-on options
 let options;
 try {
-  options = JSON.parse(fs.readFileSync('/data/options.json', 'utf8'));
+  const optionsPath = isElectronPackaged
+    ? path.join(DATA_ROOT, 'options.json')
+    : (fs.existsSync('/data/options.json') ? '/data/options.json' : './options.json');
+  
+  console.log('📋 Loading options from:', optionsPath);
+  
+  if (fs.existsSync(optionsPath)) {
+    options = JSON.parse(fs.readFileSync(optionsPath, 'utf8'));
+  } else {
+    // Create default options if file doesn't exist
+    options = {
+      inverter_number: 1,
+      battery_number: 1,
+      mqtt_topic_prefix: '',
+      mqtt_host: '',
+      mqtt_port: 1883,
+      mqtt_username: '',
+      mqtt_password: '',
+      clientId: '',
+      clientSecret: '',
+      timezone: 'Europe/Berlin'
+    };
+    
+    // Save default options
+    fs.writeFileSync(optionsPath, JSON.stringify(options, null, 2));
+    console.log('📝 Created default options file');
+  }
 } catch (error) {
-  options = JSON.parse(fs.readFileSync('./options.json', 'utf8'));
+  console.error('Error loading options:', error);
+  options = {
+    inverter_number: 1,
+    battery_number: 1,
+    mqtt_topic_prefix: '',
+    mqtt_host: '',
+    mqtt_port: 1883,
+    mqtt_username: '',
+    mqtt_password: '',
+    clientId: '',
+    clientSecret: '',
+    timezone: 'Europe/Berlin'
+  };
 }
 
 // Optimized favicon handler
@@ -167,28 +249,23 @@ const inverterNumber = options.inverter_number
 const batteryNumber = options.battery_number 
 const mqttTopicPrefix = options.mqtt_topic_prefix 
 
-// Constants
-const SETTINGS_FILE = path.join(__dirname, 'data', 'settings.json')
+
 
 const CACHE_DURATION = 24 * 3600000 // 24 hours in milliseconds
-// Database file removed - using InfluxDB only
-const TELEGRAM_CONFIG_FILE = path.join(__dirname, 'data', 'telegram_config.json')
-const WARNINGS_CONFIG_FILE = path.join(__dirname, 'data', 'warnings_config.json')
 
-// Create data directory if it doesn't exist
-if (!fs.existsSync(path.join(__dirname, 'data'))) {
-  fs.mkdirSync(path.join(__dirname, 'data'))
+const DATA_DIR = path.join(DATA_ROOT, 'data');
+
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  console.log('📁 Created data directory:', DATA_DIR);
 }
 
-// Database removed - AI engine uses InfluxDB only
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+const TELEGRAM_CONFIG_FILE = path.join(DATA_DIR, 'telegram_config.json');
+const WARNINGS_CONFIG_FILE = path.join(DATA_DIR, 'warnings_config.json');
 
-if (!fs.existsSync(SETTINGS_FILE)) {
-  fs.writeFileSync(SETTINGS_FILE, JSON.stringify({
-    apiKey: '',
-    selectedZone: '',
-    username: ''
-  }));
-}
+
+
 
 // Middleware
 app.use(helmet({
@@ -1506,7 +1583,7 @@ function generateCategoryOptions(inverterNumber, batteryNumber) {
 
 // ================ TIME ZONE ================
 
-const timezonePath = path.join(__dirname, 'timezone.json')
+const timezonePath = path.join(DATA_ROOT, 'timezone.json')
 
 function getCurrentTimezone() {
   try {
@@ -1614,7 +1691,7 @@ function checkInverterMessages(messages, expectedInverters) {
 
 // ================ GRAFANA  ================
 
-const DASHBOARD_CONFIG_PATH = path.join(__dirname, 'grafana', 'provisioning', 'dashboards', 'solar_power_dashboard.json');
+const DASHBOARD_CONFIG_PATH = path.join(APP_ROOT, 'grafana', 'provisioning', 'dashboards', 'solar_power_dashboard.json');
 
 app.get('/api/solar-data', (req, res) => {
   try {
@@ -1837,7 +1914,9 @@ app.post('/api/config/save', (req, res) => {
     })
     
     // Save to options.json file
-    const optionsPath = fs.existsSync('/data/options.json') ? '/data/options.json' : './options.json'
+    const optionsPath = isElectronPackaged 
+      ? path.join(DATA_ROOT, 'options.json')
+      : (fs.existsSync('/data/options.json') ? '/data/options.json' : './options.json')
     fs.writeFileSync(optionsPath, JSON.stringify(options, null, 2))
     
     console.log('Configuration saved successfully')
@@ -1893,7 +1972,7 @@ app.post('/api/config/save', (req, res) => {
 
 
 app.get('/energy-dashboard', async (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+  res.sendFile(path.join(APP_ROOT, 'frontend/dist/index.html'))
 })
 
 // Home Assistant ingress routes for energy dashboard
@@ -1909,35 +1988,35 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
 
 // All routes serve React app
 app.get('/analytics', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+  res.sendFile(path.join(APP_ROOT, 'frontend/dist/index.html'))
 })
 
 app.get('/results', async (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+  res.sendFile(path.join(APP_ROOT, 'frontend/dist/index.html'))
 })
 
 app.get('/settings', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+  res.sendFile(path.join(APP_ROOT, 'frontend/dist/index.html'))
 })
 
 app.get('/messages', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+  res.sendFile(path.join(APP_ROOT, 'frontend/dist/index.html'))
 })
 
 app.get('/chart', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+  res.sendFile(path.join(APP_ROOT, 'frontend/dist/index.html'))
 })
 
 app.get('/ai-dashboard', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+  res.sendFile(path.join(APP_ROOT, 'frontend/dist/index.html'))
 })
 
 app.get('/ai-system', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+  res.sendFile(path.join(APP_ROOT, 'frontend/dist/index.html'))
 })
 
 app.get('/notifications', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'))
+  res.sendFile(path.join(APP_ROOT, 'frontend/dist/index.html'))
 })
 
 
@@ -2474,7 +2553,7 @@ app.get('/notifications', (req, res) => {
       const limit = parseInt(req.query.limit) || 10;
       
       // First try to get real AI decisions from the AI service
-      const influxAIService = require('./services/influxAIService');
+      const influxAIService = require(path.join(APP_ROOT, 'services', 'influxAIService'));
       const aiDecisions = await influxAIService.getDecisionHistory(limit);
       
       if (aiDecisions && aiDecisions.length > 0) {
@@ -2552,7 +2631,7 @@ app.get('/notifications', (req, res) => {
       const limit = parseInt(req.query.limit) || 10;
       
       // First try to get real AI commands from the AI service
-      const influxAIService = require('./services/influxAIService');
+      const influxAIService = require(path.join(APP_ROOT, 'services', 'influxAIService'));
       const aiCommands = await influxAIService.getCommandHistory(limit);
       
       if (aiCommands && aiCommands.length > 0) {
@@ -3778,7 +3857,7 @@ app.get('/notifications', (req, res) => {
   });
   
   // Add health check route
-const healthRoutes = require('./routes/health');
+const healthRoutes = require(path.join(APP_ROOT, 'routes', 'health'));
 app.use('/', healthRoutes);
 
 // Add notification routes
@@ -3786,7 +3865,7 @@ app.use('/', healthRoutes);
   app.use('/api/notifications', notificationRoutes);
   
   // Add AI routes
-  const aiRoutes = require('./routes/aiRoutes');
+  const aiRoutes = require(path.join(APP_ROOT, 'routes', 'aiRoutes'));
   app.use('/', aiRoutes);
   
   // Enhanced notifications page
@@ -4965,12 +5044,12 @@ function initializeAIEngine() {
 
 async function initializeConnections() {
   // Create required directories
-  const dataDir = path.join(__dirname, 'data');
+  const dataDir = path.join(DATA_ROOT, 'data');
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
   
-  const logsDir = path.join(__dirname, 'logs');
+  const logsDir = path.join(DATA_ROOT, 'logs');
   if (!fs.existsSync(logsDir)) {
     fs.mkdirSync(logsDir, { recursive: true });
   }
@@ -4981,16 +5060,9 @@ async function initializeConnections() {
   // Connect to WebSocket broker
   connectToWebSocketBroker();
   
-  // Initialize warning service
-  const warningService = require('./services/warningService');
+  // Services already loaded at top of file
   console.log('✅ Warning service initialized');
-  
-  // Initialize Telegram service
-  const telegramService = require('./services/telegramService');
   console.log('✅ Telegram notification service initialized');
-  
-  // Initialize enhanced notification service
-  const notificationService = require('./services/notificationService');
   console.log('✅ Enhanced notification service initialized');
   
   // Make enhanced notification service globally available
@@ -5061,7 +5133,7 @@ async function initializeConnections() {
     try {
       console.log('Initializing data with inverter type support...');
       
-      const DYNAMIC_PRICING_CONFIG_FILE = path.join(__dirname, 'data', 'dynamic_pricing_config.json');
+      const DYNAMIC_PRICING_CONFIG_FILE = path.join(DATA_ROOT, 'data', 'dynamic_pricing_config.json');
       
       let config = null;
       if (fs.existsSync(DYNAMIC_PRICING_CONFIG_FILE)) {
@@ -5257,9 +5329,9 @@ function setupWarningChecks() {
 
 function ensureDirectoriesExist() {
   const directories = [
-    path.join(__dirname, 'data'),
-    path.join(__dirname, 'logs'),
-    path.join(__dirname, 'grafana', 'provisioning', 'dashboards')
+    path.join(DATA_ROOT, 'data'),
+    path.join(DATA_ROOT, 'logs'),
+    path.join(DATA_ROOT, 'grafana', 'provisioning', 'dashboards')
   ];
   
   directories.forEach(dir => {
@@ -5398,7 +5470,32 @@ cron.schedule('0,30 * * * *', () => {
   
 
 // Initialize enhanced connections when server starts
-initializeConnections();
+console.log('🔧 Starting initialization...');
+try {
+  initializeConnections().catch(error => {
+    console.error('❌ Fatal error during initialization:', error.message);
+    console.error('Stack:', error.stack);
+    process.exit(1);
+  });
+  console.log('✅ Initialization started successfully');
+} catch (error) {
+  console.error('❌ Fatal error starting initialization:', error.message);
+  console.error('Stack:', error.stack);
+  process.exit(1);
+}
+
+// Global error handlers
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error.message);
+  console.error('Stack:', error.stack);
+  console.error('Location: Likely in initialization or route setup');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise);
+  console.error('Reason:', reason);
+  console.error('Location: Likely in async initialization');
+});
 
 // Enhanced server startup with additional status reporting
 app.listen(port, () => {
@@ -5409,6 +5506,7 @@ app.listen(port, () => {
   console.log(`🔄 Auto-Setting Mapping: ENABLED (intelligent command translation)`);
   console.log(`💡 Learner Mode: ${learnerModeActive ? 'ACTIVE' : 'INACTIVE'}`);
   console.log('🔋 Enhanced System: READY');
+  console.log('✅ SERVER STARTED SUCCESSFULLY');
   
   // Enhanced status check after 5 seconds
   setTimeout(() => {

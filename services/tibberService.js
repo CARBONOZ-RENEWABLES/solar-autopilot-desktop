@@ -5,7 +5,8 @@ const path = require('path');
 class TibberService {
   constructor() {
     this.apiUrl = 'https://api.tibber.com/v1-beta/gql';
-    this.configFile = path.join(__dirname, '../data/tibber_config.json');
+    const DATA_ROOT = process.env.USER_DATA_PATH || path.join(__dirname, '..');
+    this.configFile = path.join(DATA_ROOT, 'data', 'tibber_config.json');
     this.config = this.loadConfig();
     this.cache = {
       currentPrice: null,

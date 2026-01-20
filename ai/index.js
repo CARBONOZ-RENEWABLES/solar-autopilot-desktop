@@ -1,11 +1,14 @@
 // AI-Powered Solar Charging Optimizer
 // Pattern-based learning without weather APIs
 
-const SolarPredictor = require('./models/solarPredictor');
-const LoadForecaster = require('./models/loadForecaster');
-const ChargingOptimizer = require('./models/chargingOptimizer');
-const PatternDetector = require('./models/patternDetector');
-const DataProcessor = require('./utils/dataProcessor');
+const path = require('path');
+const APP_ROOT = process.env.RESOURCES_PATH || path.join(__dirname, '..');
+const DATA_ROOT = process.env.USER_DATA_PATH || APP_ROOT;
+const SolarPredictor = require(path.join(__dirname, 'models', 'solarPredictor'));
+const LoadForecaster = require(path.join(__dirname, 'models', 'loadForecaster'));
+const ChargingOptimizer = require(path.join(__dirname, 'models', 'chargingOptimizer'));
+const PatternDetector = require(path.join(__dirname, 'models', 'patternDetector'));
+const DataProcessor = require(path.join(__dirname, 'utils', 'dataProcessor'));
 
 class AIChargingSystem {
   constructor() {

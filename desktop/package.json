@@ -9,40 +9,76 @@
     "backend": "cd .. && npm start",
     "frontend": "cd ../frontend && npm run dev",
     "build": "npm run build-frontend && npm run build-backend",
-    "build-frontend": "cd ../frontend && npm run build && cp -r dist ../desktop/frontend-dist",
+    "build-frontend": "cd ../frontend && npm run build",
     "build-backend": "cd .. && npm install --production",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder",
-    "dist-all": "electron-builder -mwl",
-    "dist-mac": "electron-builder --mac",
-    "dist-win": "electron-builder --win",
-    "dist-linux": "electron-builder --linux"
+    "dist": "npm run build-frontend && electron-builder",
+    "dist-all": "npm run build-frontend && electron-builder -mwl",
+    "dist-mac": "npm run build-frontend && electron-builder --mac",
+    "dist-win": "npm run build-frontend && electron-builder --win",
+    "dist-linux": "npm run build-frontend && electron-builder --linux"
   },
   "build": {
     "appId": "com.carbonoz.solarautopilot",
     "productName": "CARBONOZ SolarAutopilot",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "assets"
     },
     "files": [
       "main.js",
       "preload.js",
-      "assets/**/*",
-      "../server.js",
-      "../package.json",
-      "../frontend/dist/**/*",
-      "../services/**/*",
-      "../routes/**/*",
-      "../ai/**/*",
-      "../utils/**/*",
-      "../data/**/*",
-      "!../node_modules/**/test/**",
-      "!../node_modules/**/tests/**",
-      "!../node_modules/**/*.md",
-      "!../node_modules/**/.bin/**"
+      "assets/**/*"
     ],
-    "asarUnpack": [
-      "../node_modules/**"
+    "extraResources": [
+      {
+        "from": "../server.js",
+        "to": "server.js"
+      },
+      {
+        "from": "../package.json",
+        "to": "package.json"
+      },
+      {
+        "from": "../package-lock.json",
+        "to": "package-lock.json",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../frontend/dist",
+        "to": "frontend/dist",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../services",
+        "to": "services",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../routes",
+        "to": "routes",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../ai",
+        "to": "ai",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../utils",
+        "to": "utils",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../node_modules",
+        "to": "node_modules",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../data",
+        "to": "data",
+        "filter": ["**/*"]
+      }
     ],
     "mac": {
       "category": "public.app-category.utilities",
@@ -50,9 +86,7 @@
       "target": [
         {
           "target": "dmg",
-          "arch": [
-            "universal"
-          ]
+          "arch": ["universal"]
         }
       ],
       "minimumSystemVersion": "10.13.0",
@@ -66,24 +100,17 @@
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64",
-            "ia32"
-          ]
+          "arch": ["x64", "ia32"]
         },
         {
           "target": "portable",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         }
       ]
     },
     "linux": {
       "icon": "assets/icon.png",
-      "target": [
-        "AppImage"
-      ],
+      "target": ["AppImage"],
       "category": "Utility"
     },
     "nsis": {

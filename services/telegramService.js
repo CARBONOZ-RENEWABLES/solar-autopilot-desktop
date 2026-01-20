@@ -5,7 +5,8 @@ const path = require('path');
 const axios = require('axios');
 
 // Configuration file path
-const TELEGRAM_CONFIG_FILE = path.join(__dirname, '..', 'data', 'telegram_config.json');
+const DATA_ROOT = process.env.USER_DATA_PATH || path.join(__dirname, '..');
+const TELEGRAM_CONFIG_FILE = path.join(DATA_ROOT, 'data', 'telegram_config.json');
 
 // Default configuration - NO AUTOMATIC NOTIFICATIONS
 const defaultConfig = {
