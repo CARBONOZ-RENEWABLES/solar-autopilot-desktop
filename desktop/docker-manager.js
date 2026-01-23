@@ -126,34 +126,29 @@ class DockerManager {
 
   async initializeInfluxDB() {
     try {
-      // Wait and retry logic for InfluxDB to be ready
-      const maxRetries = 10;
-      const retryDelay = 2000;
+      const maxRetries = 5;
+      const retryDelay = 1500;
       
       for (let i = 0; i < maxRetries; i++) {
         try {
-          // Try localhost on port 8087 (mapped from container's 8086)
-          const testCmd = `curl -f -m 5 http://127.0.0.1:8087/ping`;
+          const testCmd = `curl -f -m 3 http://127.0.0.1:8087/ping`;
           await execAsync(testCmd);
-          console.log('✅ InfluxDB accessible on 127.0.0.1:8087');
+          console.log('✅ InfluxDB accessible');
           
-          // Create database
           const createDbCommand = `curl -XPOST "http://127.0.0.1:8087/query" --data-urlencode "q=CREATE DATABASE solarautopilot"`;
           await execAsync(createDbCommand);
-          console.log('✅ InfluxDB database "solarautopilot" created');
+          console.log('✅ InfluxDB database created');
           return true;
         } catch (error) {
           if (i < maxRetries - 1) {
-            console.log(`⏳ Waiting for InfluxDB to be ready... (attempt ${i + 1}/${maxRetries})`);
+            console.log(`⏳ Waiting for InfluxDB... (${i + 1}/${maxRetries})`);
             await new Promise(resolve => setTimeout(resolve, retryDelay));
-          } else {
-            throw error;
           }
         }
       }
+      throw new Error('InfluxDB not responding');
     } catch (error) {
-      console.error('❌ Failed to initialize InfluxDB database:', error.message);
-      console.log('💡 Try: docker restart solarautopilot-influxdb');
+      console.warn('⚠️  InfluxDB init failed:', error.message);
       return false;
     }
   }
