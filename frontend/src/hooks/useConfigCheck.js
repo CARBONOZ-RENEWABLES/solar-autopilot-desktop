@@ -11,7 +11,14 @@ export function useConfigCheck() {
   const checkConfiguration = async () => {
     try {
       console.log('Checking configuration...')
-      const response = await fetch('/api/config/check')
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 5000)
+      
+      const response = await fetch('/api/config/check', {
+        signal: controller.signal
+      })
+      clearTimeout(timeout)
+      
       const data = await response.json()
       console.log('Config check response:', data)
       
