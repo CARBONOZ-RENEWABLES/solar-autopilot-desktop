@@ -23,6 +23,10 @@ class DockerManager {
         ports: ['3001:3000'],
         env: [
           'GF_SECURITY_ADMIN_PASSWORD=admin',
+          'GF_AUTH_ANONYMOUS_ENABLED=true',
+          'GF_AUTH_ANONYMOUS_ORG_ROLE=Admin',
+          'GF_AUTH_BASIC_ENABLED=false',
+          'GF_AUTH_DISABLE_LOGIN_FORM=true',
           'GF_SECURITY_ALLOW_EMBEDDING=true'
         ],
         volumes: ['solarautopilot-grafana-data:/var/lib/grafana']
