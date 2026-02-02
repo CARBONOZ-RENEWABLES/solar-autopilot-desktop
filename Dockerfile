@@ -1,87 +1,48 @@
-ARG BUILD_FROM
-FROM ${BUILD_FROM}
+# CARBONOZ SolarAutopilot - Production Docker Image
+FROM node:18-alpine
 
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
-ARG BUILD_ARCH
-ARG S6_OVERLAY_VERSION=3.1.5.0
-
-# --- Install S6 overlay (correct order for Alpine) ---
-RUN apk add --no-cache xz
-
-RUN \
-    curl -L -s \
-    "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" \
-    | tar -Jxpf - -C / \
-    && case "${BUILD_ARCH}" in \
-        "aarch64") S6_ARCH="aarch64" ;; \
-        "amd64") S6_ARCH="x86_64" ;; \
-        "armhf") S6_ARCH="armhf" ;; \
-        "armv7") S6_ARCH="arm" ;; \
-        "i386") S6_ARCH="i686" ;; \
-        *) S6_ARCH="x86_64" ;; \
-    esac \
-    && curl -L -s \
-    "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz" \
-    | tar -Jxpf - -C /
-
-# Required for s6-overlay v3
-RUN apk add --no-cache execline
-
-# --- Install system dependencies ---
+# Install dependencies
 RUN apk add --no-cache \
-    nodejs npm \
-    openssl openssl-dev \
-    bash curl wget tzdata \
-    python3 make g++ gcc \
-    linux-headers
+    python3 \
+    make \
+    g++ \
+    curl \
+    nginx
 
-# --- Install Grafana & InfluxDB ---
-RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
-    && apk update \
-    && apk add --no-cache grafana influxdb
+# Set working directory
+WORKDIR /app
 
-# --- Prepare directories ---
-RUN mkdir -p /data/influxdb/meta \
-    /data/influxdb/data \
-    /data/influxdb/wal \
-    /data/backup \
-    && chown -R nobody:nobody /data
-
-WORKDIR /usr/src/app
-
-# --- Install Node dependencies (forced native build on correct arch) ---
+# Copy package files
 COPY package*.json ./
+COPY frontend/package*.json ./frontend/
 
-RUN npm config set unsafe-perm true \
-    && npm install --omit=dev \
-    && npm cache clean --force
+# Install dependencies
+RUN npm install --production
+RUN cd frontend && npm install && cd ..
 
-# --- Copy application ---
+# Copy application files
 COPY . .
 
-COPY rootfs /
-COPY grafana/grafana.ini /etc/grafana/grafana.ini
-COPY grafana/provisioning /etc/grafana/provisioning
+# Build frontend
+RUN cd frontend && npm run build && cd ..
 
-RUN chmod +x /usr/bin/carbonoz.sh \
-    && find /etc/services.d -name run -exec chmod +x {} \; \
-    && find /etc/services.d -name finish -exec chmod +x {} \;
+# Setup nginx
+RUN mkdir -p /etc/nginx/conf.d /var/www/html
+RUN cp -r frontend/dist/* /var/www/html/
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-ARG BUILD_DATE
-ARG BUILD_REF
-ARG BUILD_VERSION
+# Create data directories
+RUN mkdir -p /app/data /app/logs
 
-LABEL \
-    io.hass.name="CARBONOZ SolarAutopilot" \
-    io.hass.description="Home Assistant Add-on" \
-    io.hass.arch="${BUILD_ARCH}" \
-    io.hass.type="addon" \
-    io.hass.version=${BUILD_VERSION}
+# Create startup script
+RUN printf '#!/bin/sh\nnginx -g "daemon off;" &\nnode server.js' > /start.sh && chmod +x /start.sh
 
-ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=256"
+# Expose ports
+EXPOSE 80 6789
 
-EXPOSE 3001 8086 6789 8000
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:80 || exit 1
 
-ENTRYPOINT ["/init"]
+# Start application
+CMD ["/start.sh"]

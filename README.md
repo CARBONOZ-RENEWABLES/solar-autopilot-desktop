@@ -68,6 +68,48 @@ Create your own account under  [[https://login.carbonoz.com](https://login.carbo
 - 🌱 **CO2 Tracking** - Monitor your environmental impact and carbon offsets
 - 📱 **Cross-Platform** - Available for macOS, Windows, Linux, and Home Assistant
 - 🔔 **Smart Notifications** - Telegram alerts for important events
+- 🐳 **Docker Support** - Easy deployment with Docker and Docker Compose
+- 🌐 **Network Access** - Access via localhost, IP, or hostname (solarautopilot.local)
+
+---
+
+## 🐳 Docker Deployment
+
+### Quick Start with Docker
+
+```bash
+# Pull and run from Docker Hub
+docker pull elitedesire/solarautopilot:latest
+
+docker run -d \
+  --name solarautopilot \
+  -p 48732:48732 \
+  -p 8000:8000 \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/logs:/app/logs \
+  elitedesire/solarautopilot:latest
+```
+
+### Using Docker Compose
+
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+### Access the Application
+
+- **Local:** http://localhost:48732
+- **Network:** http://<your-ip>:48732
+- **Hostname:** http://solarautopilot.local:48732
+
+📖 **Full deployment guide:** See [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ---
 
@@ -138,8 +180,8 @@ npm start
 ### Port already in use
 **Solution:** 
 ```bash
-# Find and kill process on port 3000
-lsof -ti:3000 | xargs kill -9
+# Find and kill process on port 48732
+lsof -ti:48732 | xargs kill -9
 ```
 
 ---

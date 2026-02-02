@@ -48,8 +48,8 @@ class AIChargingEngine {
       dischargeEfficiency: 0.95, // ηd
       roundTripEfficiency: 0.9025, // 95% * 95%
       
-      // Dynamic price thresholds (no fixed values)
-      pricePercentileThreshold: 0.3, // Charge when price is in bottom 30% of forecast
+      // Only charge at cheapest price
+      pricePercentileThreshold: 0.0, // Charge only at absolute minimum price (0% = cheapest)
       
       // SOC boundaries from study assumptions
       socMin: 0.20, // 20% minimum (SOCmin)
@@ -98,9 +98,9 @@ class AIChargingEngine {
     
     const sizeCategory = this.getBatterySizeCategory();
     
-    console.log('✅ AI Charging Engine initialized (Dynamic Pricing Enhanced)');
-    console.log(`   • Strategy: ${this.aiEnabled ? 'AI-Powered Pattern Learning' : 'Dynamic lowest price optimization'}`);
-    console.log(`   • Threshold: Bottom ${(this.academicParams.pricePercentileThreshold * 100).toFixed(0)}% of forecast prices`);
+    console.log('✅ AI Charging Engine initialized (Cheapest Price Only)');
+    console.log(`   • Strategy: ${this.aiEnabled ? 'AI-Powered Pattern Learning' : 'Charge only at absolute minimum price'}`);
+    console.log(`   • Threshold: Only at cheapest hour (0th percentile)`);
     console.log(`   • Battery: ${this.config.batteryCapacity} kWh (${sizeCategory.category} - ${this.batteryDetection.detectionMethod})`);
     console.log(`   • Category: ${sizeCategory.description}`);
     console.log(`   • Efficiency: ${(this.academicParams.roundTripEfficiency * 100).toFixed(1)}% round-trip`);
@@ -427,10 +427,10 @@ class AIChargingEngine {
           if (thresholds.isNegative) {
             shouldCharge = true;
             reasons.push(`NEGATIVE PRICE ARBITRAGE: Getting paid ${Math.abs(thresholds.current).toFixed(2)}¢/kWh`);
-          } else if (thresholds.current <= thresholds.dynamicCharge) {
+          } else if (thresholds.current === thresholds.dynamicCharge) {
             shouldCharge = true;
-            reasons.push(`DYNAMIC OPTIMAL: ${thresholds.current.toFixed(2)}¢ ≤ ${thresholds.dynamicCharge.toFixed(2)}¢/kWh (bottom ${(thresholds.percentile * 100).toFixed(0)}%)`);
-            reasons.push(`Charging at lowest ${(thresholds.percentile * 100).toFixed(0)}% of forecast prices`);
+            reasons.push(`CHEAPEST PRICE: ${thresholds.current.toFixed(2)}¢/kWh (absolute minimum in 24h forecast)`);
+            reasons.push(`Charging only at the cheapest hour`);
           }
           
           if (optimization.shouldDischarge && batterySOC > 30) {
@@ -501,15 +501,14 @@ class AIChargingEngine {
     const minPrice = Math.min(...next24h);
     const avgPrice = next24h.reduce((a, b) => a + b, 0) / next24h.length;
     
-    // Calculate dynamic thresholds based on price distribution
+    // Calculate dynamic thresholds - only charge at absolute minimum
     const sortedPrices = [...next24h].sort((a, b) => a - b);
-    const percentileIndex = Math.floor(sortedPrices.length * this.academicParams.pricePercentileThreshold);
-    const dynamicChargeThreshold = sortedPrices[percentileIndex];
+    const dynamicChargeThreshold = sortedPrices[0]; // Only the cheapest price
     
     // Price volatility indicator
     const volatility = (maxPrice - minPrice) / avgPrice;
     
-    // Dynamic optimal threshold: bottom 30% of forecast prices
+    // Only charge at absolute minimum price
     const isOptimalPrice = currentPrice.total <= dynamicChargeThreshold;
     
     // High price threshold for discharge (top 20% of prices)
@@ -558,9 +557,9 @@ class AIChargingEngine {
         return `CHARGE GRID - NEGATIVE PRICE ARBITRAGE: ${Math.abs(currentPrice.total).toFixed(2)}¢/kWh (Study: 12.7% gain potential)`;
       }
       if (optimization?.priceLevel === 'OPTIMAL') {
-        return `CHARGE GRID - DYNAMIC OPTIMAL: ${currentPrice.total.toFixed(2)}¢ ≤ ${optimization.thresholds.dynamicCharge.toFixed(2)}¢/kWh (Strategy: ${strategy.name}, SOC: ${batterySOC}%)`;
+        return `CHARGE GRID - CHEAPEST PRICE: ${currentPrice.total.toFixed(2)}¢/kWh (absolute minimum, Strategy: ${strategy.name}, SOC: ${batterySOC}%)`;
       }
-      return `CHARGE GRID - Lowest price period (SOC: ${batterySOC}%, Strategy: ${strategy.name})`;
+      return `CHARGE GRID - Cheapest price period (SOC: ${batterySOC}%, Strategy: ${strategy.name})`;
     }
     
     // DISCHARGE scenarios (peak arbitrage from study)

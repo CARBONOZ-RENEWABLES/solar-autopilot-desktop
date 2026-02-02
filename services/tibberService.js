@@ -846,13 +846,13 @@ class TibberService {
 
   async fetchSMARDTimestamps() {
     const url = `${this.smardConfig.baseUrl}/${this.smardConfig.filter}/DE/index_hour.json`;
-    const response = await axios.get(url, { timeout: 10000 });
+    const response = await axios.get(url, { timeout: 5000 });
     return response.data.timestamps || [];
   }
 
   async fetchSMARDData(timestamp) {
     const url = `${this.smardConfig.baseUrl}/${this.smardConfig.filter}/DE/${this.smardConfig.filter}_DE_hour_${timestamp}.json`;
-    const response = await axios.get(url, { timeout: 10000 });
+    const response = await axios.get(url, { timeout: 5000 });
     return response.data.series || [];
   }
 

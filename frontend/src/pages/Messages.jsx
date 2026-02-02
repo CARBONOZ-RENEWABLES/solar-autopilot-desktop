@@ -10,17 +10,41 @@ export default function Messages() {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [loading, setLoading] = useState(true)
   const [liveIndicator, setLiveIndicator] = useState(true)
+  const [categories, setCategories] = useState([{ value: 'all', label: 'All Messages' }])
   const { isDark } = useTheme()
   const { isLoading: pageLoading } = usePageLoading(500, 1000)
 
-  const categories = [
-    { value: 'all', label: 'All Messages' },
-    { value: 'battery', label: 'Battery' },
-    { value: 'solar', label: 'Solar' },
-    { value: 'grid', label: 'Grid' },
-    { value: 'system', label: 'System' },
-    { value: 'error', label: 'Errors' }
-  ]
+  useEffect(() => {
+    fetchConfig()
+  }, [])
+
+  const fetchConfig = async () => {
+    try {
+      const response = await fetch('/api/config/check')
+      const data = await response.json()
+      if (data.success) {
+        const cats = [{ value: 'all', label: 'All Messages' }]
+        
+        for (let i = 1; i <= data.config.inverter_number; i++) {
+          cats.push({ value: `inverter${i}`, label: `Inverter ${i}` })
+        }
+        
+        for (let i = 1; i <= data.config.battery_number; i++) {
+          cats.push({ value: `battery${i}`, label: `Battery ${i}` })
+        }
+        
+        cats.push(
+          { value: 'total', label: 'Total' },
+          { value: 'load', label: 'Load' },
+          { value: 'pv', label: 'PV/Solar' },
+          { value: 'grid', label: 'Grid' }
+        )
+        setCategories(cats)
+      }
+    } catch (error) {
+      console.error('Error fetching config:', error)
+    }
+  }
 
   useEffect(() => {
     fetchMessages()

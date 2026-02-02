@@ -244,7 +244,7 @@ export default function AIDashboard() {
       <div className="space-y-3">
         <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
           <span>{forecast.length}h Forecast</span>
-          <span>{minPrice.toFixed(2)}€ - {maxPrice.toFixed(2)}€</span>
+          <span>{minPrice.toFixed(1)}¢ - {maxPrice.toFixed(1)}¢</span>
         </div>
         <div className="flex items-end space-x-1 h-20">
           {forecast.slice(0, 24).map((item, index) => {
@@ -267,7 +267,7 @@ export default function AIDashboard() {
                     isCurrentHour && 'ring-2 ring-primary'
                   )}
                   style={{ height: `${height}px` }}
-                  title={`${hour}:00 - ${item.total.toFixed(3)}€/kWh - ${(item.level || 'NORMAL').replace('_', ' ')}`}
+                  title={`${hour}:00 - ${item.total.toFixed(1)}¢/kWh - ${(item.level || 'NORMAL').replace('_', ' ')}`}
                 />
                 {index % 4 === 0 && (
                   <span className="text-xs text-gray-500 mt-1">{hour}h</span>
@@ -404,7 +404,7 @@ export default function AIDashboard() {
             )} />
           </div>
           <div className="text-2xl font-bold text-gray-900 dark:text-white">
-            {currentPrice ? `${currentPrice.total.toFixed(3)} €/kWh` : 'Loading...'}
+            {currentPrice ? `${currentPrice.total.toFixed(1)} ¢/kWh` : 'Loading...'}
           </div>
         </div>
         
@@ -457,7 +457,7 @@ export default function AIDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                    {currentPrice.total.toFixed(3)} €/kWh
+                    {currentPrice.total.toFixed(1)} ¢/kWh
                   </div>
                   <span className={clsx('px-2 py-1 text-xs font-medium rounded-full', 
                     priceLevel === 'VERY_CHEAP' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
@@ -477,14 +477,14 @@ export default function AIDashboard() {
                 <div>
                   <span className="text-sm text-gray-600 dark:text-gray-400">Next Hour</span>
                   <div className="font-semibold">
-                    {priceData.nextHour ? `${priceData.nextHour.total.toFixed(3)} €` : 'Loading...'}
+                    {priceData.nextHour ? `${priceData.nextHour.total.toFixed(1)} ¢` : 'Loading...'}
                   </div>
                 </div>
                 <div>
                   <span className="text-sm text-gray-600 dark:text-gray-400">Cheapest Today</span>
                   <div className="font-semibold">
                     {priceData.cheapest ? 
-                      `${priceData.cheapest.total.toFixed(3)} € at ${new Date(priceData.cheapest.startsAt).getHours()}:00` : 
+                      `${priceData.cheapest.total.toFixed(1)} ¢ at ${new Date(priceData.cheapest.startsAt).getHours()}:00` : 
                       'Loading...'
                     }
                   </div>

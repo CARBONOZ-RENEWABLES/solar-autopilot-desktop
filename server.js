@@ -12,7 +12,7 @@ const axios = require('axios')
 const { backOff } = require('exponential-backoff')
 const socketPort = 8000
 const app = express()
-const port = process.env.PORT || 3000
+const port = process.env.PORT || 6789
 const { http } = require('follow-redirects')
 const cors = require('cors')
 const helmet = require('helmet')
@@ -1617,25 +1617,32 @@ function filterMessagesByCategory(category) {
       const topicParts = topic.split('/')
   
       if (category.startsWith('inverter')) {
-        const inverterNum = category.match(/\d+$/)[0]
-        return topicParts[1] === `inverter_${inverterNum}`
+        const inverterNum = category.match(/\d+$/)?.[0]
+        return inverterNum && topicParts.some(part => part === `inverter_${inverterNum}`)
       }
   
       if (category.startsWith('battery')) {
-        const batteryNum = category.match(/\d+$/)[0]
-        return topicParts[1] === `battery_${batteryNum}`
+        const batteryNum = category.match(/\d+$/)?.[0]
+        return batteryNum && topicParts.some(part => part === `battery_${batteryNum}`)
       }
   
-      const categoryKeywords = {
-        loadPower: ['load_power'],
-        gridPower: ['grid_power'],
-        pvPower: ['pv_power'],
-        total: ['total'],
+      if (category === 'total') {
+        return topicParts.some(part => part === 'total')
+      }
+      
+      if (category === 'load') {
+        return topic.toLowerCase().includes('load')
+      }
+      
+      if (category === 'pv') {
+        return topic.toLowerCase().includes('pv') || topic.toLowerCase().includes('solar')
+      }
+      
+      if (category === 'grid') {
+        return topic.toLowerCase().includes('grid')
       }
   
-      return categoryKeywords[category]
-        ? topicParts.some((part) => categoryKeywords[category].includes(part))
-        : false
+      return false
     })
   }
 
@@ -1949,6 +1956,11 @@ app.post('/api/config/save', (req, res) => {
       }, 1000)
     }
     
+    // Update global variables immediately
+    global.inverterNumber = options.inverter_number
+    global.batteryNumber = options.battery_number
+    global.mqttTopicPrefix = options.mqtt_topic_prefix
+    
     // Broadcast configuration update via WebSocket
     broadcastToClients({
       type: 'config_updated',
@@ -1958,7 +1970,7 @@ app.post('/api/config/save', (req, res) => {
     
     res.json({
       success: true,
-      message: 'Configuration saved successfully'
+      message: 'Configuration saved and applied successfully'
     })
   } catch (error) {
     console.error('Error saving configuration:', error)
