@@ -38,7 +38,7 @@ jobs:
           context: .
           push: true
           tags: |
-            carbonoz/solarautopilot:${{ steps.meta.outputs.version }}
-            carbonoz/solarautopilot:latest
+            elitedesire/solarautopilot:${{ steps.meta.outputs.version }}
+            elitedesire/solarautopilot:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
