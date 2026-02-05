@@ -39,6 +39,7 @@ if [ -S /var/run/docker.sock ]; then
         echo "📈 Creating Grafana..."
         docker run -d --name carbonoz-grafana \
             --network solarautopilot-network \
+            -p 3001:3000 \
             -e GF_SECURITY_ADMIN_PASSWORD=admin \
             -e GF_AUTH_ANONYMOUS_ENABLED=true \
             -e GF_AUTH_ANONYMOUS_ORG_ROLE=Admin \
