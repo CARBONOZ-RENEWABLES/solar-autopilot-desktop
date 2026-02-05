@@ -1,0 +1,22 @@
+services:
+  solarautopilot:
+    image: elitedesire/solarautopilot:latest
+    container_name: carbonoz-solarautopilot
+    restart: unless-stopped
+    network_mode: bridge
+    ports:
+      - "3000:3000"
+      - "8000:8000"
+      - "8087:8087"
+      - "3001:3001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - app-data:/app/data
+      - app-logs:/app/logs
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+
+volumes:
+  app-data:
+  app-logs:

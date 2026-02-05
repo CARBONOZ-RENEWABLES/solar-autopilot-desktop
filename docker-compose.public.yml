@@ -1,7 +1,6 @@
 services:
   # Main Application
   solarautopilot:
-    build: .
     image: elitedesire/solarautopilot:latest
     container_name: carbonoz-solarautopilot
     restart: unless-stopped
@@ -54,7 +53,6 @@ services:
       - GF_SECURITY_ALLOW_EMBEDDING=true
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - influxdb
     networks:

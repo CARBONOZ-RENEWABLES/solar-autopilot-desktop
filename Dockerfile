@@ -1,13 +1,13 @@
 # CARBONOZ SolarAutopilot - Production Docker Image
 FROM node:18-alpine
 
-# Install dependencies
+# Install Docker CLI to manage sibling containers
 RUN apk add --no-cache \
     python3 \
     make \
     g++ \
     curl \
-    nginx
+    docker-cli
 
 # Set working directory
 WORKDIR /app
@@ -26,23 +26,19 @@ COPY . .
 # Build frontend
 RUN cd frontend && npm run build && cd ..
 
-# Setup nginx
-RUN mkdir -p /etc/nginx/conf.d /var/www/html
-RUN cp -r frontend/dist/* /var/www/html/
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
 # Create data directories
-RUN mkdir -p /app/data /app/logs
+RUN mkdir -p /app/data /app/logs /app/data/sessions
 
-# Create startup script
-RUN printf '#!/bin/sh\nnginx -g "daemon off;" &\nnode server.js' > /start.sh && chmod +x /start.sh
+# Copy and set permissions for entrypoint
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # Expose ports
-EXPOSE 80 6789
+EXPOSE 3000 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:80 || exit 1
+  CMD curl -f http://localhost:3000 || exit 1
 
-# Start application
-CMD ["/start.sh"]
+# Start application with entrypoint script
+ENTRYPOINT ["/docker-entrypoint.sh"]

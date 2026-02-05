@@ -69,6 +69,22 @@ class DockerManager {
       // Create network if it doesn't exist
       await execAsync('docker network create solarautopilot-network 2>/dev/null || true');
       
+      // For Grafana, ensure desktop datasource config is used
+      if (service === 'grafana') {
+        try {
+          const fs = require('fs');
+          const path = require('path');
+          const desktopConfig = path.join(process.cwd(), '../grafana/provisioning/datasources/influxdb-desktop.yml');
+          const targetConfig = path.join(process.cwd(), '../grafana/provisioning/datasources/influxdb.yml');
+          if (fs.existsSync(desktopConfig)) {
+            fs.copyFileSync(desktopConfig, targetConfig);
+            console.log('✅ Desktop datasource config applied');
+          }
+        } catch (err) {
+          console.warn('⚠️  Could not copy datasource config:', err.message);
+        }
+      }
+      
       const { stdout } = await execAsync(`docker ps -a --filter "name=${config.name}" --format "{{.Names}}"`);
       
       if (stdout.trim() === config.name) {
@@ -82,6 +98,14 @@ class DockerManager {
         const cmd = `docker run -d --name ${config.name} ${portFlags} ${envFlags} ${volumeFlags} --restart unless-stopped --network solarautopilot-network ${config.image}`;
         await execAsync(cmd);
         console.log(`✅ Created and started ${service} container`);
+      }
+      
+      // Wait for container to be healthy
+      if (service === 'grafana') {
+        console.log('⏳ Waiting for Grafana to be ready...');
+        await new Promise(resolve => setTimeout(resolve, 8000));
+      } else if (service === 'influxdb') {
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
       
       return true;
@@ -111,20 +135,20 @@ class DockerManager {
       return { success: false, error: 'Docker not installed' };
     }
 
+    // Start InfluxDB first and wait
     const influxStarted = await this.startContainer('influxdb');
-    const grafanaStarted = await this.startContainer('grafana');
-
-    if (influxStarted && grafanaStarted) {
-      console.log('✅ All containers started successfully');
-      return { success: true };
-    } else {
-      return { 
-        success: false, 
-        error: 'Failed to start some containers',
-        influxdb: influxStarted,
-        grafana: grafanaStarted
-      };
+    if (!influxStarted) {
+      return { success: false, error: 'Failed to start InfluxDB' };
     }
+
+    // Start Grafana and wait
+    const grafanaStarted = await this.startContainer('grafana');
+    if (!grafanaStarted) {
+      return { success: false, error: 'Failed to start Grafana' };
+    }
+
+    console.log('✅ All containers started successfully');
+    return { success: true };
   }
 
   async stopAll() {

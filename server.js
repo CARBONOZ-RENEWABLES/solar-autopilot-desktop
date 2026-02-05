@@ -12,7 +12,7 @@ const axios = require('axios')
 const { backOff } = require('exponential-backoff')
 const socketPort = 8000
 const app = express()
-const port = process.env.PORT || 6789
+const port = process.env.PORT || 3000
 const { http } = require('follow-redirects')
 const cors = require('cors')
 const helmet = require('helmet')
@@ -20,6 +20,7 @@ const rateLimit = require('express-rate-limit')
 // SQLite removed - not needed for AI engine
 const cron = require('node-cron')
 const session = require('express-session');
+const FileStore = require('session-file-store')(session);
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const { startOfDay } = require('date-fns')
 
@@ -273,11 +274,24 @@ app.use(helmet({
 }))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
+
+// Use file-based session store instead of memory store
+const sessionStore = new FileStore({
+  path: path.join(DATA_ROOT, 'sessions'),
+  ttl: 86400, // 24 hours
+  retries: 0,
+  logFn: () => {} // Suppress logs
+});
+
 app.use(session({
+  store: sessionStore,
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
-  saveUninitialized: true,
-  cookie: { secure: process.env.NODE_ENV === 'production' }
+  saveUninitialized: false,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 86400000 // 24 hours
+  }
 }))
 
 // Configure trust proxy more securely for Home Assistant ingress

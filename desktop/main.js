@@ -469,9 +469,9 @@ async function initializeServices() {
         console.log('🐳 Docker detected, starting containers...');
         updateLoadingProgress('Starting InfluxDB and Grafana...', 15);
         
-        // Start containers with timeout
+        // Start containers with sufficient timeout for both InfluxDB and Grafana
         const dockerTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Docker timeout')), 15000)
+          setTimeout(() => reject(new Error('Docker timeout')), 60000)
         );
         
         try {
@@ -482,10 +482,10 @@ async function initializeServices() {
           
           if (result.success) {
             console.log('✅ Docker containers started');
-            updateLoadingProgress('✅ Docker containers ready', 30);
+            updateLoadingProgress('✅ InfluxDB and Grafana ready', 30);
             dockerStarted = true;
             
-            // Initialize database in background (non-blocking)
+            // Initialize database in background
             setTimeout(async () => {
               try {
                 await dockerManager.initializeInfluxDB();

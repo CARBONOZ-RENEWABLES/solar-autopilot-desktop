@@ -75,41 +75,89 @@ Create your own account under  [[https://login.carbonoz.com](https://login.carbo
 
 ## 🐳 Docker Deployment
 
-### Quick Start with Docker
+### Quick Start - Single Container (Recommended)
+
+**Pull and run - everything included:**
 
 ```bash
-# Pull and run from Docker Hub
-docker pull elitedesire/solarautopilot:latest
-
 docker run -d \
-  --name solarautopilot \
-  -p 48732:48732 \
+  --name carbonoz-solarautopilot \
+  -p 3000:3000 \
   -p 8000:8000 \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/logs:/app/logs \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v solarautopilot-data:/app/data \
+  -v solarautopilot-logs:/app/logs \
+  --restart unless-stopped \
   elitedesire/solarautopilot:latest
 ```
 
-### Using Docker Compose
+**Or with Docker Compose:**
 
 ```bash
-# Start all services
+curl -O https://raw.githubusercontent.com/eelitedesire/SolarAutopilotApp/main/docker-compose.standalone.yml
+mv docker-compose.standalone.yml docker-compose.yml
 docker-compose up -d
+```
 
+**Access:**
+- **App:** http://localhost:3000
+- **Grafana:** Access via app's dashboard (auto-configured)
+
+**What happens automatically:**
+- ✅ Pulls SolarAutopilot image
+- ✅ Starts InfluxDB container
+- ✅ Starts Grafana container
+- ✅ Configures networking
+- ✅ Ready in ~30 seconds
+
+### Alternative: Docker Run
+
+```bash
+# Create network
+docker network create solarautopilot-network
+
+# Start InfluxDB
+docker run -d --name carbonoz-influxdb \
+  --network solarautopilot-network \
+  -p 8087:8086 \
+  -e INFLUXDB_DB=solarautopilot \
+  -v influxdb-data:/var/lib/influxdb \
+  influxdb:1.8-alpine
+
+# Start Grafana
+docker run -d --name carbonoz-grafana \
+  --network solarautopilot-network \
+  -p 3001:3000 \
+  -e GF_SECURITY_ADMIN_PASSWORD=admin \
+  -e GF_AUTH_ANONYMOUS_ENABLED=true \
+  -e GF_AUTH_ANONYMOUS_ORG_ROLE=Admin \
+  -v grafana-data:/var/lib/grafana \
+  grafana/grafana:latest
+
+# Start SolarAutopilot
+docker run -d --name carbonoz-solarautopilot \
+  --network solarautopilot-network \
+  -p 3000:3000 -p 8000:8000 \
+  -e INFLUXDB_HOST=carbonoz-influxdb \
+  -v app-data:/app/data \
+  -v app-logs:/app/logs \
+  elitedesire/solarautopilot:latest
+```
+
+### Manage Services
+
+```bash
 # View logs
 docker-compose logs -f
 
 # Stop services
 docker-compose down
+
+# Update to latest
+docker-compose pull && docker-compose up -d
 ```
 
-### Access the Application
-
-- **Local:** http://localhost:48732
-- **Network:** http://<your-ip>:48732
-- **Hostname:** http://solarautopilot.local:48732
-
-📖 **Full deployment guide:** See [DEPLOYMENT.md](DEPLOYMENT.md)
+📖 **Full Docker guide:** See [DOCKER_QUICK_START.md](DOCKER_QUICK_START.md)
 
 ---
 
