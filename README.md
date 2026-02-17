@@ -216,6 +216,13 @@ npm start
 
 ## ❓ Troubleshooting
 
+### Grafana dashboards showing "localhost refused to connect"
+**Solution:** The system now auto-detects Grafana. Just restart the container:
+```bash
+docker restart carbonoz-solarautopilot
+```
+Wait 30 seconds and refresh your browser. See [GRAFANA_QUICK_FIX.md](GRAFANA_QUICK_FIX.md) for details.
+
 ### App stuck at "Installing frontend dependencies..."
 **Solution:** You're running the development version. Download the pre-built installer from GitHub Actions instead.
 

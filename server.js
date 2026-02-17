@@ -100,8 +100,35 @@ function broadcastToClients(data) {
 
 
 
-const GRAFANA_URL = 'http://localhost:3001';
+// Dynamic Grafana URL detection
+let GRAFANA_URL = process.env.GRAFANA_URL || 'http://localhost:3001';
 const BASE_PATH = process.env.INGRESS_PATH || '';
+
+// Function to detect Grafana URL dynamically
+async function detectGrafanaUrl() {
+  const possibleUrls = [
+    'http://localhost:3001',
+    'http://127.0.0.1:3001',
+    'http://carbonoz-grafana:3000',
+    'http://solarautopilot-grafana:3000'
+  ];
+  
+  for (const url of possibleUrls) {
+    try {
+      const response = await axios.get(`${url}/api/health`, { timeout: 2000 });
+      if (response.status === 200) {
+        console.log(`✅ Grafana detected at: ${url}`);
+        GRAFANA_URL = url;
+        return url;
+      }
+    } catch (error) {
+      // Continue to next URL
+    }
+  }
+  
+  console.warn('⚠️  Could not detect Grafana URL, using default: http://localhost:3001');
+  return 'http://localhost:3001';
+}
 
 
 
@@ -142,9 +169,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Grafana proxy - handles all the path rewriting
-const grafanaProxy = createProxyMiddleware({
-  target: GRAFANA_URL,
+// Grafana proxy - handles all the path rewriting with dynamic target
+let grafanaProxy = createProxyMiddleware({
+  target: () => GRAFANA_URL, // Dynamic target
   changeOrigin: true,
   ws: true,
   pathRewrite: (path, req) => {
@@ -1868,6 +1895,28 @@ app.get('/api/config/check', (req, res) => {
       success: false,
       error: 'Failed to check configuration'
     })
+  }
+})
+
+// Grafana URL endpoint for frontend
+app.get('/api/grafana/url', (req, res) => {
+  try {
+    // Return the Grafana URL that frontend should use
+    // For browser access, always use localhost:3001
+    const browserUrl = 'http://localhost:3001';
+    
+    res.json({
+      success: true,
+      url: browserUrl,
+      internalUrl: GRAFANA_URL
+    });
+  } catch (error) {
+    console.error('Error getting Grafana URL:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get Grafana URL',
+      url: 'http://localhost:3001' // Fallback
+    });
   }
 })
 
@@ -5498,10 +5547,13 @@ cron.schedule('0,30 * * * *', () => {
 // Initialize enhanced connections when server starts
 console.log('🔧 Starting initialization...');
 try {
-  initializeConnections().catch(error => {
-    console.error('❌ Fatal error during initialization:', error.message);
-    console.error('Stack:', error.stack);
-    process.exit(1);
+  // Detect Grafana URL before initializing connections
+  detectGrafanaUrl().then(() => {
+    initializeConnections().catch(error => {
+      console.error('❌ Fatal error during initialization:', error.message);
+      console.error('Stack:', error.stack);
+      process.exit(1);
+    });
   });
   console.log('✅ Initialization started successfully');
 } catch (error) {

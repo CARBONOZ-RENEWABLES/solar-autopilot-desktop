@@ -32,6 +32,7 @@ export default function EnergyDashboard() {
   const [loading, setLoading] = useState(true)
   const [warnings, setWarnings] = useState([])
   const [iframeKey, setIframeKey] = useState(0)
+  const [grafanaUrl, setGrafanaUrl] = useState('http://localhost:3001')
   const { isLoading: pageLoading } = usePageLoading(800, 1500)
   const { isDark } = useTheme()
 
@@ -55,6 +56,17 @@ export default function EnergyDashboard() {
   }, [isDark])
 
   useEffect(() => {
+    // Fetch Grafana URL from backend
+    fetch('/api/grafana/url')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.url) {
+          setGrafanaUrl(data.url)
+          console.log('Grafana URL set to:', data.url)
+        }
+      })
+      .catch(err => console.error('Failed to fetch Grafana URL:', err))
+    
     fetchSystemData()
     const interval = setInterval(fetchSystemData, 30000) // Update every 30 seconds
     return () => clearInterval(interval)
@@ -179,7 +191,7 @@ export default function EnergyDashboard() {
             </div>
           </div>
           <iframe
-            src={`http://localhost:3001/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=1&theme=${isDark ? 'dark' : 'light'}&kiosk=tv`}
+            src={`${grafanaUrl}/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=1&theme=${isDark ? 'dark' : 'light'}&kiosk=tv`}
             className="w-full h-48 border-0"
             title="Load Power"
           />
@@ -195,7 +207,7 @@ export default function EnergyDashboard() {
           </div>
           <iframe
             key={`solar-${iframeKey}`}
-            src={`http://localhost:3001/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=8&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
+            src={`${grafanaUrl}/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=8&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
             className="w-full h-48 border-0"
             title="Solar Power"
           />
@@ -211,7 +223,7 @@ export default function EnergyDashboard() {
           </div>
           <iframe
             key={`battery-${iframeKey}`}
-            src={`http://localhost:3001/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=4&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
+            src={`${grafanaUrl}/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=4&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
             className="w-full h-48 border-0"
             title="Battery Power"
           />
@@ -227,7 +239,7 @@ export default function EnergyDashboard() {
           </div>
           <iframe
             key={`grid-${iframeKey}`}
-            src={`http://localhost:3001/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=7&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
+            src={`${grafanaUrl}/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=7&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
             className="w-full h-48 border-0"
             title="Grid Power"
           />
@@ -246,7 +258,7 @@ export default function EnergyDashboard() {
           </div>
           <iframe
             key={`soc-${iframeKey}`}
-            src={`http://localhost:3001/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=9&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
+            src={`${grafanaUrl}/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=9&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
             className="w-full h-48 border-0"
             title="Battery SOC"
           />
@@ -262,7 +274,7 @@ export default function EnergyDashboard() {
           </div>
           <iframe
             key={`batt-volt-${iframeKey}`}
-            src={`http://localhost:3001/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=10&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
+            src={`${grafanaUrl}/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=10&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
             className="w-full h-48 border-0"
             title="Battery Voltage"
           />
@@ -278,7 +290,7 @@ export default function EnergyDashboard() {
           </div>
           <iframe
             key={`grid-volt-${iframeKey}`}
-            src={`http://localhost:3001/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=2&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
+            src={`${grafanaUrl}/d-solo/solar_power_dashboard/solar-power-dashboard?orgId=1&refresh=5s&panelId=2&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
             className="w-full h-48 border-0"
             title="Grid Voltage"
           />
@@ -333,7 +345,7 @@ export default function EnergyDashboard() {
           </div>
           <iframe
             key={`battery-chart-${iframeKey}`}
-            src={`http://localhost:3001/d-solo/solar_dashboard/charts?orgId=1&refresh=5s&panelId=116&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
+            src={`${grafanaUrl}/d-solo/solar_dashboard/charts?orgId=1&refresh=5s&panelId=116&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
             className="w-full h-96 border-0"
             title="Battery Power Chart"
           />
@@ -349,7 +361,7 @@ export default function EnergyDashboard() {
           </div>
           <iframe
             key={`soc-chart-${iframeKey}`}
-            src={`http://localhost:3001/d-solo/solar_dashboard/charts?orgId=1&refresh=5s&panelId=139&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
+            src={`${grafanaUrl}/d-solo/solar_dashboard/charts?orgId=1&refresh=5s&panelId=139&theme=${isDark ? 'dark' : 'light'}&kiosk=tv&_t=${Date.now()}`}
             className="w-full h-96 border-0"
             title="Battery State of Charge Chart"
           />

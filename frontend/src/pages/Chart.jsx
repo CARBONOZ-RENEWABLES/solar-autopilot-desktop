@@ -7,10 +7,22 @@ import { usePageLoading } from '../hooks/useLoading'
 export default function Chart() {
   const [loading, setLoading] = useState(true)
   const [iframeKey, setIframeKey] = useState(0)
+  const [grafanaUrl, setGrafanaUrl] = useState('http://localhost:3001')
   const { isDark } = useTheme()
   const { isLoading: pageLoading } = usePageLoading(600, 1200)
 
   useEffect(() => {
+    // Fetch Grafana URL from backend
+    fetch('/api/grafana/url')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.url) {
+          setGrafanaUrl(data.url)
+          console.log('Grafana URL set to:', data.url)
+        }
+      })
+      .catch(err => console.error('Failed to fetch Grafana URL:', err))
+    
     const timer = setTimeout(() => setLoading(false), 2000)
     return () => clearTimeout(timer)
   }, [])
@@ -74,7 +86,7 @@ export default function Chart() {
         
         <iframe
           key={iframeKey}
-          src={`http://localhost:3001/d/solar_dashboard/solar_dashboard?orgId=1&kiosk=1&refresh=5s&theme=${isDark ? 'dark' : 'light'}`}
+          src={`${grafanaUrl}/d/solar_dashboard/solar_dashboard?orgId=1&kiosk=1&refresh=5s&theme=${isDark ? 'dark' : 'light'}`}
           className="w-full h-full border-0 rounded-xl shadow-lg"
           title="Solar Power Dashboard"
           onLoad={() => setLoading(false)}
