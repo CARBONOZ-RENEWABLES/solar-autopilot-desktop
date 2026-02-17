@@ -1901,9 +1901,12 @@ app.get('/api/config/check', (req, res) => {
 // Grafana URL endpoint for frontend
 app.get('/api/grafana/url', (req, res) => {
   try {
-    // Return the Grafana URL that frontend should use
-    // For browser access, always use localhost:3001
-    const browserUrl = 'http://localhost:3001';
+    // Get hostname from request to support remote access
+    const host = req.get('host') || 'localhost:3000';
+    const hostname = host.split(':')[0];
+    
+    // Return Grafana URL using same hostname as request
+    const browserUrl = `http://${hostname}:3001`;
     
     res.json({
       success: true,
@@ -1915,7 +1918,7 @@ app.get('/api/grafana/url', (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to get Grafana URL',
-      url: 'http://localhost:3001' // Fallback
+      url: 'http://localhost:3001'
     });
   }
 })
