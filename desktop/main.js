@@ -466,41 +466,49 @@ async function initializeServices() {
       const dockerStatus = await dockerManager.getStatus();
       
       if (dockerStatus.dockerInstalled) {
-        console.log('🐳 Docker detected, starting containers...');
-        updateLoadingProgress('Starting InfluxDB and Grafana...', 15);
+        console.log('🐳 Docker detected, checking containers...');
         
-        // Start containers with sufficient timeout for both InfluxDB and Grafana
-        const dockerTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Docker timeout')), 60000)
-        );
-        
-        try {
-          const result = await Promise.race([
-            dockerManager.startAll(),
-            dockerTimeout
-          ]);
+        // If containers already running, skip startup
+        if (dockerStatus.allRunning) {
+          console.log('✅ Docker containers already running');
+          updateLoadingProgress('✅ InfluxDB and Grafana ready', 30);
+          dockerStarted = true;
+        } else {
+          console.log('🐳 Starting Docker containers...');
+          updateLoadingProgress('Starting InfluxDB and Grafana...', 15);
           
-          if (result.success) {
-            console.log('✅ Docker containers started');
-            updateLoadingProgress('✅ InfluxDB and Grafana ready', 30);
-            dockerStarted = true;
+          const dockerTimeout = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Docker timeout')), 45000)
+          );
+          
+          try {
+            const result = await Promise.race([
+              dockerManager.startAll(),
+              dockerTimeout
+            ]);
             
-            // Initialize database in background
-            setTimeout(async () => {
-              try {
-                await dockerManager.initializeInfluxDB();
-              } catch (e) {
-                console.warn('⚠️  Background InfluxDB init failed:', e.message);
-              }
-            }, 3000);
-          } else {
-            console.warn('⚠️  Docker containers failed:', result.error);
-            updateLoadingProgress('⚠️  Docker failed, continuing...', 30);
+            if (result.success) {
+              console.log('✅ Docker containers started');
+              updateLoadingProgress('✅ InfluxDB and Grafana ready', 30);
+              dockerStarted = true;
+            } else {
+              console.warn('⚠️  Docker containers failed:', result.error);
+              updateLoadingProgress('⚠️  Docker failed, continuing...', 30);
+            }
+          } catch (dockerError) {
+            console.warn('⚠️  Docker timeout or error:', dockerError.message);
+            updateLoadingProgress('⚠️  Docker timeout, continuing...', 30);
           }
-        } catch (dockerError) {
-          console.warn('⚠️  Docker timeout or error:', dockerError.message);
-          updateLoadingProgress('⚠️  Docker timeout, continuing...', 30);
         }
+        
+        // Initialize database in background
+        setTimeout(async () => {
+          try {
+            await dockerManager.initializeInfluxDB();
+          } catch (e) {
+            console.warn('⚠️  Background InfluxDB init failed:', e.message);
+          }
+        }, 3000);
       } else {
         console.warn('⚠️  Docker not installed');
         updateLoadingProgress('⚠️  Docker not found, continuing...', 30);

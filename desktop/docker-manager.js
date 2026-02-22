@@ -56,12 +56,29 @@ class DockerManager {
     }
   }
 
+  async findContainerByPort(port) {
+    try {
+      const { stdout } = await execAsync(`docker ps --filter "publish=${port}" --format "{{.Names}}"`);
+      return stdout.trim();
+    } catch (error) {
+      return null;
+    }
+  }
+
   async startContainer(service) {
     const config = this.containers[service];
     const isRunning = await this.isContainerRunning(config.name);
     
     if (isRunning) {
       console.log(`✅ ${service} container already running`);
+      return true;
+    }
+
+    // Check if another container is using the port
+    const port = config.ports[0].split(':')[0];
+    const existingContainer = await this.findContainerByPort(port);
+    if (existingContainer && existingContainer !== config.name) {
+      console.log(`✅ ${service} already running as '${existingContainer}' on port ${port}`);
       return true;
     }
 
@@ -85,12 +102,29 @@ class DockerManager {
         }
       }
       
-      const { stdout } = await execAsync(`docker ps -a --filter "name=${config.name}" --format "{{.Names}}"`);
+      // Check if container exists (stopped or running)
+      const { stdout } = await execAsync(`docker ps -a --filter "name=^/${config.name}$" --format "{{.Names}}"`);
       
       if (stdout.trim() === config.name) {
-        await execAsync(`docker start ${config.name}`);
-        console.log(`✅ Started existing ${service} container`);
+        // Container exists, just start it
+        try {
+          await execAsync(`docker start ${config.name}`);
+          console.log(`✅ Started existing ${service} container`);
+        } catch (startErr) {
+          // If start fails, container might be in bad state, remove and recreate
+          console.log(`⚠️  Failed to start existing container, recreating...`);
+          await execAsync(`docker rm -f ${config.name}`).catch(() => {});
+          
+          const envFlags = config.env.map(e => `-e ${e}`).join(' ');
+          const portFlags = config.ports.map(p => `-p ${p}`).join(' ');
+          const volumeFlags = config.volumes.map(v => `-v ${v}`).join(' ');
+          
+          const cmd = `docker run -d --name ${config.name} ${portFlags} ${envFlags} ${volumeFlags} --restart unless-stopped --network solarautopilot-network ${config.image}`;
+          await execAsync(cmd);
+          console.log(`✅ Created and started ${service} container`);
+        }
       } else {
+        // Container doesn't exist, create it
         const envFlags = config.env.map(e => `-e ${e}`).join(' ');
         const portFlags = config.ports.map(p => `-p ${p}`).join(' ');
         const volumeFlags = config.volumes.map(v => `-v ${v}`).join(' ');
@@ -100,12 +134,11 @@ class DockerManager {
         console.log(`✅ Created and started ${service} container`);
       }
       
-      // Wait for container to be healthy
+      // Quick health check
       if (service === 'grafana') {
-        console.log('⏳ Waiting for Grafana to be ready...');
-        await new Promise(resolve => setTimeout(resolve, 8000));
-      } else if (service === 'influxdb') {
         await new Promise(resolve => setTimeout(resolve, 2000));
+      } else if (service === 'influxdb') {
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
       
       return true;

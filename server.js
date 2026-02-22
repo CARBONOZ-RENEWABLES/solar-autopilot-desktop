@@ -6598,3 +6598,6 @@ process.on('SIGINT', GracefulShutdown);
 
 process.on('SIGTERM', GracefulShutdown);
 process.on('SIGINT', GracefulShutdown);
+
+
+// Start the HTTP server
