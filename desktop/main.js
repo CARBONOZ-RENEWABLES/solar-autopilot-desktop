@@ -478,7 +478,7 @@ async function initializeServices() {
           updateLoadingProgress('Starting InfluxDB and Grafana...', 15);
           
           const dockerTimeout = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Docker timeout')), 45000)
+            setTimeout(() => reject(new Error('Docker timeout')), 60000)
           );
           
           try {

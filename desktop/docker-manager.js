@@ -136,9 +136,9 @@ class DockerManager {
       
       // Quick health check
       if (service === 'grafana') {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 3000));
       } else if (service === 'influxdb') {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
       
       return true;
