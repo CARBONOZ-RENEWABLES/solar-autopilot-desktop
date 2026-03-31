@@ -47,11 +47,12 @@ if (isElectronPackaged) {
 }
 
 // Load services after APP_ROOT is defined - with error handling
-let AuthenticateUser, telegramService, warningService, notificationRoutes, 
+let AuthenticateUser, CheckSubscriptionStatus, StartSubscriptionMonitoring, StopSubscriptionMonitoring, GetSubscriptionStatus;
+let telegramService, warningService, notificationRoutes, 
     notificationService, ruleEvaluationService, tibberService, aiChargingEngine, memoryMonitor;
 
 try {
-  ({ AuthenticateUser } = require(path.join(APP_ROOT, 'utils', 'mongoService')));
+  ({ AuthenticateUser, CheckSubscriptionStatus, StartSubscriptionMonitoring, StopSubscriptionMonitoring, GetSubscriptionStatus } = require(path.join(APP_ROOT, 'utils', 'mongoService')));
   telegramService = require(path.join(APP_ROOT, 'services', 'telegramService'));
   warningService = require(path.join(APP_ROOT, 'services', 'warningService'));
   notificationRoutes = require(path.join(APP_ROOT, 'routes', 'notificationRoutes'));
@@ -1869,6 +1870,74 @@ setTimeout(() => {
   refreshPricingData();
 }, 5000);
 
+// ================ SUBSCRIPTION AUTHENTICATION MIDDLEWARE ================
+
+// Middleware to check subscription status before serving pages
+async function requireSubscription(req, res, next) {
+  try {
+    // Skip subscription check for public routes
+    const publicRoutes = [
+      '/api/subscription/status',
+      '/subscription-required',
+      '/api/config/check',
+      '/api/config/save',
+      '/favicon.ico'
+    ];
+    
+    // Check if current path is public
+    const isPublicRoute = publicRoutes.some(route => req.path === route || req.path.startsWith(route));
+    
+    if (isPublicRoute) {
+      return next();
+    }
+    
+    // Check if credentials are configured
+    if (!options.clientId || !options.clientSecret) {
+      console.log('⚠️  No credentials configured - redirecting to subscription page');
+      return res.redirect('/subscription-required');
+    }
+    
+    // Check subscription status
+    const hasAccess = await CheckSubscriptionStatus(options);
+    
+    if (!hasAccess) {
+      console.log('❌ No active subscription - access denied to:', req.path);
+      
+      // For API requests, return JSON error
+      if (req.path.startsWith('/api/')) {
+        return res.status(403).json({
+          error: 'Subscription required',
+          message: 'Please subscribe at https://login.carbonoz.com to access this feature',
+          hasAccess: false
+        });
+      }
+      
+      // For page requests, redirect to subscription page
+      return res.redirect('/subscription-required');
+    }
+    
+    // Subscription is valid, allow access
+    next();
+  } catch (error) {
+    console.error('Error checking subscription in middleware:', error);
+    
+    // On error, deny access for security
+    if (req.path.startsWith('/api/')) {
+      return res.status(500).json({
+        error: 'Authentication error',
+        message: 'Unable to verify subscription status'
+      });
+    }
+    
+    return res.redirect('/subscription-required');
+  }
+}
+
+// Apply subscription middleware to all routes except public ones
+app.use(requireSubscription);
+
+console.log('🔒 Subscription authentication middleware enabled');
+
 // Configuration check API - MUST BE BEFORE OTHER ROUTES
 app.get('/api/config/check', (req, res) => {
   try {
@@ -1895,6 +1964,57 @@ app.get('/api/config/check', (req, res) => {
       success: false,
       error: 'Failed to check configuration'
     })
+  }
+})
+
+// Subscription status check
+app.get('/api/subscription/status', async (req, res) => {
+  try {
+    if (!options.clientId || !options.clientSecret) {
+      return res.json({ hasAccess: false, reason: 'not_configured' })
+    }
+    
+    const isAuthenticated = await AuthenticateUser(options)
+    
+    if (!isAuthenticated) {
+      return res.json({ hasAccess: false, reason: 'no_subscription' })
+    }
+    
+    res.json({ hasAccess: true })
+  } catch (error) {
+    console.error('Error checking subscription:', error)
+    res.json({ hasAccess: false, reason: 'error' })
+  }
+})
+
+// Subscription status check
+app.get('/api/subscription/status', async (req, res) => {
+  try {
+    const status = GetSubscriptionStatus();
+    
+    if (!status) {
+      return res.json({ 
+        hasAccess: false, 
+        message: 'Subscription status not yet checked',
+        mqttConnected: mqttClient?.connected || false
+      });
+    }
+    
+    res.json({ 
+      hasAccess: status.hasAccess,
+      userId: status.userId,
+      checkedAt: status.checkedAt,
+      error: status.error,
+      mqttConnected: mqttClient?.connected || false,
+      aiEngineActive: aiEngineInitialized && aiChargingEngine?.getStatus()?.enabled
+    });
+  } catch (error) {
+    console.error('Error checking subscription:', error);
+    res.json({ 
+      hasAccess: false, 
+      error: error.message,
+      mqttConnected: false
+    });
   }
 })
 
@@ -2064,7 +2184,12 @@ app.get('/hassio_ingress/:token/energy-dashboard', (req, res) => {
 
 
 
-// All routes serve React app
+// Subscription required page - PUBLIC (no auth required)
+app.get('/subscription-required', (req, res) => {
+  res.sendFile(path.join(APP_ROOT, 'frontend/dist/index.html'))
+})
+
+// All routes serve React app - PROTECTED by subscription middleware
 app.get('/analytics', (req, res) => {
   res.sendFile(path.join(APP_ROOT, 'frontend/dist/index.html'))
 })
@@ -3280,6 +3405,8 @@ app.get('/notifications', (req, res) => {
   // ================ FORWARDING MESSAGES TO OUR BACKEND ================
   
   let heartbeatInterval = null;
+  let globalWsClient = null; // Global WebSocket client for message forwarding
+  let isWsAuthenticated = false; // Track if WebSocket is authenticated
   
   const connectToWebSocketBroker = async () => {
     let wsClient = null;
@@ -3354,7 +3481,7 @@ app.get('/notifications', (req, res) => {
       try {
         console.log(`Attempting WebSocket connection (attempt ${reconnectAttempts}/${maxReconnectAttempts})...`);
         
-        const brokerServerUrl = `wss://broker.carbonoz.com:8000`;
+        const brokerServerUrl = `ws://192.168.160.185:8000`;
         
         wsClient = new WebSocket(brokerServerUrl);
   
@@ -3376,40 +3503,23 @@ app.get('/notifications', (req, res) => {
           reconnectAttempts = 0;
           
           try {
-            const isUser = await AuthenticateUser(options);
-            console.log('Authentication Result:', { isUser });
+            const isUser = await AuthenticateUser(mqttConfig);
+            console.log('WebSocket Authentication Result:', { isUser });
   
             if (isUser) {
+              globalWsClient = wsClient;
+              isWsAuthenticated = true;
               startHeartbeat(wsClient);
-  
-              mqttClient.on('message', (topic, message) => {
-                if (wsClient.readyState === WebSocket.OPEN) {
-                  try {
-                    const messageStr = message.toString();
-                    const maxSize = 10000;
-                    const truncatedMessage = messageStr.length > maxSize ? 
-                      messageStr.substring(0, maxSize) + '...[truncated]' : 
-                      messageStr;
-                    
-                    wsClient.send(
-                      JSON.stringify({
-                        mqttTopicPrefix,
-                        topic,
-                        message: truncatedMessage,
-                        userId: isUser,
-                        timestamp: new Date().toISOString()
-                      })
-                    );
-                  } catch (sendError) {
-                    console.error('Error sending message to WebSocket:', sendError);
-                  }
-                }
-              });
+              console.log('✅ WebSocket authenticated and ready for message forwarding');
             } else {
-              console.warn('Authentication failed. Message forwarding disabled.');
+              globalWsClient = null;
+              isWsAuthenticated = false;
+              console.warn('⚠️  WebSocket authentication failed. Message forwarding disabled.');
             }
           } catch (authError) {
-            console.error('Authentication error:', authError);
+            console.error('WebSocket authentication error:', authError);
+            globalWsClient = null;
+            isWsAuthenticated = false;
           }
         });
   
@@ -3423,6 +3533,8 @@ app.get('/notifications', (req, res) => {
           clearTimeout(connectionTimeout);
           console.log(`WebSocket closed with code ${code}: ${reason || 'No reason provided'}. Reconnecting...`);
           stopHeartbeat();
+          globalWsClient = null;
+          isWsAuthenticated = false;
           
           setTimeout(connect, currentReconnectTimeout);
         });
@@ -4839,7 +4951,62 @@ function getMappingInfoForSettings(availableSettings) {
   // ================ MQTT and CRON SCHEDULING ================
 
 // Connect to MQTT with robust error handling
-function connectToMqtt() {
+async function connectToMqtt() {
+    // Check subscription before connecting to MQTT
+    console.log('🔐 Verifying subscription before MQTT connection...');
+    const isAuthenticated = await AuthenticateUser(mqttConfig);
+    
+    // Start subscription monitoring ALWAYS (even if not authenticated initially)
+    // This allows detection of subscription grants while app is running
+    StartSubscriptionMonitoring(mqttConfig, (hasAccess) => {
+      if (!hasAccess) {
+        console.error('❌❌❌ SUBSCRIPTION REVOKED - Disconnecting MQTT ❌❌❌');
+        
+        // Disconnect MQTT
+        if (mqttClient && mqttClient.connected) {
+          mqttClient.end(true);
+          console.log('🔌 MQTT disconnected due to subscription revocation');
+        }
+        
+        // Stop AI engine
+        if (aiEngineInitialized && aiChargingEngine) {
+          aiChargingEngine.stop();
+          aiEngineInitialized = false;
+          console.log('⏹️  AI Engine stopped due to subscription revocation');
+        }
+        
+        // Broadcast to WebSocket clients
+        broadcastToClients({
+          type: 'subscription_revoked',
+          message: 'Your subscription has been revoked. Please renew at https://login.carbonoz.com',
+          timestamp: new Date().toISOString()
+        });
+      } else if (hasAccess && (!mqttClient || !mqttClient.connected)) {
+        console.log('✅✅✅ SUBSCRIPTION GRANTED - Connecting MQTT ✅✅✅');
+        
+        // Connect MQTT (will auto-initialize AI engine on connect)
+        setTimeout(() => {
+          connectToMqtt();
+        }, 2000);
+        
+        // Broadcast to WebSocket clients
+        broadcastToClients({
+          type: 'subscription_granted',
+          message: 'Your subscription is now active. Connecting...',
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+    
+    if (!isAuthenticated) {
+      console.error('❌ No active subscription - MQTT connection blocked');
+      console.error('⚠️  Please subscribe at https://login.carbonoz.com to use this application');
+      console.log('🔄 Subscription monitoring active - will auto-connect when access is granted');
+      return;
+    }
+    
+    console.log('✅ Subscription verified - proceeding with MQTT connection');
+    
     const connectionOptions = {
       username: mqttConfig.username,
       password: mqttConfig.password,
@@ -4883,6 +5050,32 @@ mqttClient.on('connect', async () => {
       
       // Call the enhanced MQTT message handler with inverter type detection
       handleMqttMessage(topic, message)
+      
+      // Forward to WebSocket broker if authenticated and connected
+      if (globalWsClient && isWsAuthenticated && globalWsClient.readyState === WebSocket.OPEN) {
+        try {
+          const messageStr = message.toString();
+          const maxSize = 10000;
+          const truncatedMessage = messageStr.length > maxSize ? 
+            messageStr.substring(0, maxSize) + '...[truncated]' : 
+            messageStr;
+          
+          const subscriptionStatus = GetSubscriptionStatus();
+          const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE));
+          globalWsClient.send(
+            JSON.stringify({
+              mqttTopicPrefix,
+              topic,
+              message: truncatedMessage,
+              userId: subscriptionStatus?.userId || 'unknown',
+              timestamp: new Date().toISOString(),
+              carbonIntensityApiKey: settings.apiKey || ''
+            })
+          );
+        } catch (sendError) {
+          console.error('Error forwarding message to WebSocket:', sendError);
+        }
+      }
       
       // Always save messages to InfluxDB regardless of learner mode
       saveMessageToInfluxDB(topic, message)

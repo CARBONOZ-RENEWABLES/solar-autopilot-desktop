@@ -12,6 +12,7 @@ import Chart from './pages/Chart'
 import Results from './pages/Results'
 import Setup from './pages/Setup'
 import ConfigSetup from './pages/ConfigSetup'
+import SubscriptionRequired from './pages/SubscriptionRequired'
 import { useTheme } from './hooks/useTheme'
 import { useConfigCheck } from './hooks/useConfigCheck'
 
@@ -19,6 +20,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isSetupComplete, setIsSetupComplete] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [hasSubscription, setHasSubscription] = useState(true)
   const { isDark, toggleTheme } = useTheme()
   const { isConfigured, loading: configLoading, checkConfiguration } = useConfigCheck()
 
@@ -42,10 +44,22 @@ function App() {
     return () => clearTimeout(forceLoadTimeout)
   }, [isConfigured, loading, configLoading])
 
-  const checkSetupStatus = () => {
+  const checkSetupStatus = async () => {
     if (!configLoading) {
       const setupComplete = localStorage.getItem('solarautopilot_setup_complete')
       setIsSetupComplete(setupComplete === 'true')
+      
+      // Check subscription status
+      if (setupComplete === 'true') {
+        try {
+          const response = await fetch('/api/subscription/status')
+          const data = await response.json()
+          setHasSubscription(data.hasAccess)
+        } catch (error) {
+          console.error('Failed to check subscription:', error)
+        }
+      }
+      
       setLoading(false)
     }
   }
@@ -85,6 +99,14 @@ function App() {
     )
   }
 
+  if (!hasSubscription) {
+    return (
+      <div className={isDark ? 'dark' : ''}>
+        <SubscriptionRequired />
+      </div>
+    )
+  }
+
   return (
     <div className={`min-h-screen ${isDark ? 'dark' : ''}`} style={{ backgroundColor: isDark ? 'rgba(24, 27, 31, 1)' : '' }}>
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -120,6 +142,7 @@ function App() {
                   <Route path="/notifications" element={<Notifications />} />
                   <Route path="/chart" element={<Chart />} />
                   <Route path="/results" element={<Results />} />
+                  <Route path="/subscription-required" element={<SubscriptionRequired />} />
                 </Routes>
               </div>
             </main>

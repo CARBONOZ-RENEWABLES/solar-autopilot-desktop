@@ -1,0 +1,198 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+.subscription-page {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #ffffff;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow: hidden;
+  position: relative;
+}
+
+.animated-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.solar-panel {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  animation: float 6s ease-in-out infinite;
+  opacity: 0.4;
+}
+
+.solar-panel::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3b82f6 100%);
+  border: 2px solid #60a5fa;
+  border-radius: 4px;
+  box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.solar-panel::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(90deg, transparent, transparent 18px, rgba(96, 165, 250, 0.3) 18px, rgba(96, 165, 250, 0.3) 20px),
+              repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(96, 165, 250, 0.3) 18px, rgba(96, 165, 250, 0.3) 20px);
+}
+
+.battery {
+  position: absolute;
+  width: 50px;
+  height: 80px;
+  animation: float 8s ease-in-out infinite;
+  opacity: 0.4;
+}
+
+.battery::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(180deg, #065f46 0%, #047857 30%, #10b981 100%);
+  border: 2px solid #34d399;
+  border-radius: 8px;
+  box-shadow: inset 0 -20px 30px rgba(16, 185, 129, 0.4);
+}
+
+.battery::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 10px;
+  background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+  border: 2px solid #34d399;
+  border-radius: 3px 3px 0 0;
+  box-shadow: 0 -2px 8px rgba(52, 211, 153, 0.5);
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(5deg); }
+}
+
+.subscription-container {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  padding: 48px;
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.subscription-icon {
+  width: 80px;
+  height: 80px;
+  background: #fee;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+}
+
+.subscription-icon svg {
+  width: 40px;
+  height: 40px;
+  stroke: #dc2626;
+  fill: none;
+  stroke-width: 2;
+}
+
+.subscription-container h1 {
+  font-size: 28px;
+  color: #111;
+  margin-bottom: 16px;
+  font-weight: 700;
+}
+
+.subscription-container p {
+  color: #666;
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.subscription-features {
+  text-align: left;
+  margin-bottom: 32px;
+}
+
+.features-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.feature svg {
+  width: 16px;
+  height: 16px;
+  stroke: #16a34a;
+  fill: none;
+  stroke-width: 2;
+  flex-shrink: 0;
+}
+
+.subscription-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, rgb(217, 119, 6) 0%, rgb(245, 158, 11) 45%, rgb(251, 191, 36) 100%);
+  color: white;
+  padding: 14px 32px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 16px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+.subscription-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6);
+}
+
+.subscription-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: white;
+  fill: none;
+  stroke-width: 2;
+}
+
+.subscription-footer {
+  margin-top: 24px;
+  color: #999;
+  font-size: 14px;
+}

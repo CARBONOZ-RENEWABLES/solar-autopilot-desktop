@@ -21,10 +21,15 @@ export default function Setup({ onComplete }) {
   const [currentStep, setCurrentStep] = useState(0)
   const [loading, setLoading] = useState(true)
   const [showPasswords, setShowPasswords] = useState({
+    auth: false,
     mqtt: false,
     tibber: false
   })
   const [config, setConfig] = useState({
+    auth: {
+      clientId: '',
+      clientSecret: ''
+    },
     mqtt: {
       host: 'localhost',
       port: 1883,
@@ -52,6 +57,13 @@ export default function Setup({ onComplete }) {
       title: 'Welcome to SolarAutopilot',
       subtitle: 'Let\'s get your system configured',
       icon: Sparkles,
+      required: true
+    },
+    {
+      id: 'auth',
+      title: 'Carbonoz Authentication',
+      subtitle: 'Connect to your Carbonoz account',
+      icon: Key,
       required: true
     },
     {
@@ -131,6 +143,8 @@ export default function Setup({ onComplete }) {
     if (!step.required) return true
     
     switch (step.id) {
+      case 'auth':
+        return config.auth.clientId && config.auth.clientSecret
       case 'mqtt':
         return config.mqtt.host && config.mqtt.port && config.mqtt.topicPrefix
       case 'welcome':
@@ -149,6 +163,8 @@ export default function Setup({ onComplete }) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          clientId: config.auth.clientId,
+          clientSecret: config.auth.clientSecret,
           inverter_number: config.mqtt.inverterNumber,
           battery_number: config.mqtt.batteryNumber,
           mqtt_topic_prefix: config.mqtt.topicPrefix,
@@ -199,19 +215,87 @@ export default function Setup({ onComplete }) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <Wifi className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                <Key className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                <h3 className="font-semibold text-gray-900 dark:text-white">Authentication</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Connect to Carbonoz account</p>
+              </div>
+              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                <Wifi className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
                 <h3 className="font-semibold text-gray-900 dark:text-white">MQTT Setup</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Connect to your message broker</p>
               </div>
-              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                <Zap className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
-                <h3 className="font-semibold text-gray-900 dark:text-white">Dynamic Pricing</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Optional Tibber integration</p>
-              </div>
               <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <Globe className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                <h3 className="font-semibold text-gray-900 dark:text-white">General Config</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Timezone and regional settings</p>
+                <Zap className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                <h3 className="font-semibold text-gray-900 dark:text-white">AI Features</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Dynamic pricing & optimization</p>
+              </div>
+            </div>
+          </div>
+        )
+
+      case 'auth':
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Key className="w-8 h-8 text-blue-500" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Carbonoz Authentication</h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                Enter your Carbonoz credentials to enable cloud features and subscription verification
+              </p>
+            </div>
+
+            <div className="max-w-2xl mx-auto space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <Key className="w-4 h-4 inline mr-2" />
+                  Client ID *
+                </label>
+                <input
+                  type="text"
+                  value={config.auth.clientId}
+                  onChange={(e) => setConfig(prev => ({
+                    ...prev,
+                    auth: { ...prev.auth, clientId: e.target.value }
+                  }))}
+                  placeholder="Enter your Client ID"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <Key className="w-4 h-4 inline mr-2" />
+                  Client Secret *
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPasswords.auth ? 'text' : 'password'}
+                    value={config.auth.clientSecret}
+                    onChange={(e) => setConfig(prev => ({
+                      ...prev,
+                      auth: { ...prev.auth, clientSecret: e.target.value }
+                    }))}
+                    placeholder="Enter your Client Secret"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords(prev => ({ ...prev, auth: !prev.auth }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  >
+                    {showPasswords.auth ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Note:</strong> These credentials are required to verify your Carbonoz subscription. 
+                  Without an active subscription, the app features will be limited. 
+                  Get your credentials from <a href="https://login.carbonoz.com" target="_blank" rel="noopener noreferrer" className="underline">login.carbonoz.com</a>
+                </p>
               </div>
             </div>
           </div>
